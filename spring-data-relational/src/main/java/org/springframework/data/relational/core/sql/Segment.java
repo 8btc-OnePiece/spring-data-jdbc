@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ public interface Segment extends Visitable {
 	 * Return a SQL string representation of this {@link Segment}.
 	 * <p/>
 	 * The representation is intended for debugging purposes and an approximation to the generated SQL. While it might
-	 * work in the context of a specific dialect, you should not that the {@link #toString()} representation works across
+	 * work in the context of a specific dialect, you should not assume that the {@link #toString()} representation works across
 	 * multiple databases.
 	 *
 	 * @return a SQL string representation of this {@link Segment}.

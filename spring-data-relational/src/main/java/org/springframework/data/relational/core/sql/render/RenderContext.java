@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 package org.springframework.data.relational.core.sql.render;
 
+import org.springframework.data.relational.core.sql.IdentifierProcessing;
+
 /**
  * Render context providing {@link RenderNamingStrategy} and other resources that are required during rendering.
  *
@@ -29,6 +31,14 @@ public interface RenderContext {
 	 * @return the {@link RenderNamingStrategy}.
 	 */
 	RenderNamingStrategy getNamingStrategy();
+
+	/**
+	 * Returns the configured {@link IdentifierProcessing}.
+	 *
+	 * @return the {@link IdentifierProcessing}.
+	 * @since 2.0
+	 */
+	IdentifierProcessing getIdentifierProcessing();
 
 	/**
 	 * @return the {@link SelectRenderContext}.

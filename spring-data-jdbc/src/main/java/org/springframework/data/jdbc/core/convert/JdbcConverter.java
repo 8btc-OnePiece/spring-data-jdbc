@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import java.sql.ResultSet;
 import org.springframework.data.relational.core.conversion.RelationalConverter;
 import org.springframework.data.relational.core.mapping.PersistentPropertyPathExtension;
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
-import org.springframework.data.relational.domain.Identifier;
+import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
 import org.springframework.data.util.TypeInformation;
 import org.springframework.lang.Nullable;
 
@@ -66,4 +66,23 @@ public interface JdbcConverter extends RelationalConverter {
 	 * @return
 	 */
 	<T> T mapRow(PersistentPropertyPathExtension path, ResultSet resultSet, Identifier identifier, Object key);
+
+	/**
+	 * The type to be used to store this property in the database. Multidimensional arrays are unwrapped to reflect a
+	 * top-level array type (e.g. {@code String[][]} returns {@code String[]}).
+	 *
+	 * @return a {@link Class} that is suitable for usage with JDBC drivers.
+	 * @see org.springframework.data.jdbc.support.JdbcUtil#sqlTypeFor(Class)
+	 * @since 2.0
+	 */
+	Class<?> getColumnType(RelationalPersistentProperty property);
+
+	/**
+	 * The SQL type constant used when using this property as a parameter for a SQL statement.
+	 *
+	 * @return Must not be {@code null}.
+	 * @see java.sql.Types
+	 * @since 2.0
+	 */
+	int getSqlType(RelationalPersistentProperty property);
 }

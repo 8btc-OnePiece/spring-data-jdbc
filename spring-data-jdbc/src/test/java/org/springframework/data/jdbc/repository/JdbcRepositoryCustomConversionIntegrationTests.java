@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,15 +17,15 @@ package org.springframework.data.jdbc.repository;
 
 import static java.util.Arrays.*;
 import static org.assertj.core.api.Assertions.*;
+import static org.springframework.test.context.TestExecutionListeners.MergeMode.*;
 
 import java.math.BigDecimal;
 import java.sql.JDBCType;
-import java.util.Optional;
+import java.util.Date;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-
+import org.assertj.core.api.SoftAssertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,11 +37,12 @@ import org.springframework.data.convert.WritingConverter;
 import org.springframework.data.jdbc.core.convert.JdbcCustomConversions;
 import org.springframework.data.jdbc.core.convert.JdbcValue;
 import org.springframework.data.jdbc.repository.support.JdbcRepositoryFactory;
+import org.springframework.data.jdbc.testing.AssumeFeatureTestExecutionListener;
 import org.springframework.data.jdbc.testing.TestConfiguration;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
+import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -52,6 +53,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @ContextConfiguration
 @Transactional
+@TestExecutionListeners(value = AssumeFeatureTestExecutionListener.class, mergeMode = MERGE_WITH_DEFAULTS)
+@ExtendWith(SpringExtension.class)
 public class JdbcRepositoryCustomConversionIntegrationTests {
 
 	@Configuration
@@ -72,12 +75,10 @@ public class JdbcRepositoryCustomConversionIntegrationTests {
 
 		@Bean
 		JdbcCustomConversions jdbcCustomConversions() {
-			return new JdbcCustomConversions(asList(BigDecimalToString.INSTANCE, StringToBigDecimalConverter.INSTANCE));
+			return new JdbcCustomConversions(asList(StringToBigDecimalConverter.INSTANCE, BigDecimalToString.INSTANCE,
+					CustomIdReadingConverter.INSTANCE, CustomIdWritingConverter.INSTANCE));
 		}
 	}
-
-	@ClassRule public static final SpringClassRule classRule = new SpringClassRule();
-	@Rule public SpringMethodRule methodRule = new SpringMethodRule();
 
 	@Autowired EntityWithBooleanRepository repository;
 
@@ -104,24 +105,66 @@ public class JdbcRepositoryCustomConversionIntegrationTests {
 	public void saveAndLoadAnEntity() {
 
 		EntityWithStringyBigDecimal entity = new EntityWithStringyBigDecimal();
-		entity.stringyNumber = "123456.78910";
+		entity.stringyNumber = "123456.78912";
 
 		repository.save(entity);
 
-		Optional<EntityWithStringyBigDecimal> reloaded = repository.findById(entity.id);
+		EntityWithStringyBigDecimal reloaded = repository.findById(entity.id).get();
 
 		// loading the number from the database might result in additional zeros at the end.
-		String stringyNumber = reloaded.get().stringyNumber;
+		String stringyNumber = reloaded.stringyNumber;
 		assertThat(stringyNumber).startsWith(entity.stringyNumber);
 		assertThat(stringyNumber.substring(entity.stringyNumber.length())).matches("0*");
 	}
 
-	interface EntityWithBooleanRepository extends CrudRepository<EntityWithStringyBigDecimal, Long> {}
+	@Test // DATAJDBC-412
+	public void saveAndLoadAnEntityWithReference() {
+
+		EntityWithStringyBigDecimal entity = new EntityWithStringyBigDecimal();
+		entity.stringyNumber = "123456.78912";
+		entity.reference = new OtherEntity();
+		entity.reference.created = new Date();
+
+		repository.save(entity);
+
+		EntityWithStringyBigDecimal reloaded = repository.findById(entity.id).get();
+
+		// loading the number from the database might result in additional zeros at the end.
+		SoftAssertions.assertSoftly(softly -> {
+			String stringyNumber = reloaded.stringyNumber;
+			softly.assertThat(stringyNumber).startsWith(entity.stringyNumber);
+			softly.assertThat(stringyNumber.substring(entity.stringyNumber.length())).matches("0*");
+
+			softly.assertThat(entity.id.value).isNotNull();
+			softly.assertThat(reloaded.id.value).isEqualTo(entity.id.value);
+
+			softly.assertThat(entity.reference.id.value).isNotNull();
+			softly.assertThat(reloaded.reference.id.value).isEqualTo(entity.reference.id.value);
+		});
+	}
+
+	interface EntityWithBooleanRepository extends CrudRepository<EntityWithStringyBigDecimal, CustomId> {}
 
 	private static class EntityWithStringyBigDecimal {
 
-		@Id Long id;
+		@Id CustomId id;
 		String stringyNumber;
+		OtherEntity reference;
+	}
+
+	private static class CustomId {
+
+		private final Long value;
+
+		CustomId(Long value) {
+			this.value = value;
+		}
+	}
+
+	private static class OtherEntity {
+
+		@Id CustomId id;
+		Date created;
 	}
 
 	@WritingConverter
@@ -135,7 +178,6 @@ public class JdbcRepositoryCustomConversionIntegrationTests {
 			Object value = new BigDecimal(source);
 			return JdbcValue.of(value, JDBCType.DECIMAL);
 		}
-
 	}
 
 	@ReadingConverter
@@ -149,4 +191,27 @@ public class JdbcRepositoryCustomConversionIntegrationTests {
 			return source.toString();
 		}
 	}
+
+	@WritingConverter
+	enum CustomIdWritingConverter implements Converter<CustomId, Number> {
+
+		INSTANCE;
+
+		@Override
+		public Number convert(CustomId source) {
+			return source.value.intValue();
+		}
+	}
+
+	@ReadingConverter
+	enum CustomIdReadingConverter implements Converter<Number, CustomId> {
+
+		INSTANCE;
+
+		@Override
+		public CustomId convert(Number source) {
+			return new CustomId(source.longValue());
+		}
+	}
+
 }

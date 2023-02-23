@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,13 @@ package org.springframework.data.relational.core.sql;
 
 import static org.assertj.core.api.Assertions.*;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Unit tests for {@link DeleteValidator}.
  *
  * @author Mark Paluch
+ * @author Jens Schauder
  */
 public class DeleteValidatorUnitTests {
 
@@ -35,7 +36,7 @@ public class DeleteValidatorUnitTests {
 		assertThatThrownBy(() -> {
 			StatementBuilder.delete() //
 					.from(bar) //
-					.where(new SimpleCondition(column, "=", "foo")) //
+					.where(column.isEqualTo(SQL.literalOf("foo"))) //
 					.build();
 		}).isInstanceOf(IllegalStateException.class)
 				.hasMessageContaining("Required table [table] by a WHERE predicate not imported by FROM [bar]");

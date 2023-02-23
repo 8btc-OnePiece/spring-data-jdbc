@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +17,11 @@ package org.springframework.data.relational.core.sql.render;
 
 import static org.assertj.core.api.Assertions.*;
 
-import org.junit.Ignore;
-import org.junit.Test;
-import org.springframework.data.relational.core.sql.Column;
-import org.springframework.data.relational.core.sql.Conditions;
-import org.springframework.data.relational.core.sql.Expressions;
-import org.springframework.data.relational.core.sql.Functions;
-import org.springframework.data.relational.core.sql.OrderByField;
-import org.springframework.data.relational.core.sql.SQL;
-import org.springframework.data.relational.core.sql.Select;
-import org.springframework.data.relational.core.sql.Table;
+import org.junit.jupiter.api.Test;
+
+import org.springframework.data.relational.core.dialect.PostgresDialect;
+import org.springframework.data.relational.core.dialect.RenderContextFactory;
+import org.springframework.data.relational.core.sql.*;
 import org.springframework.util.StringUtils;
 
 /**
@@ -166,7 +161,7 @@ public class SelectRendererUnitTests {
 		assertThat(SqlRenderer.toString(select)).isEqualTo("SELECT employee.id, department.name FROM employee " //
 				+ "JOIN department ON employee.department_id = department.id " //
 				+ "AND employee.tenant = department.tenant " //
-				+ "JOIN tenant AS tenant_base ON tenant_base.tenant_id = department.tenant");
+				+ "JOIN tenant tenant_base ON tenant_base.tenant_id = department.tenant");
 	}
 
 	@Test // DATAJDBC-309
@@ -328,5 +323,51 @@ public class SelectRendererUnitTests {
 		String rendered = SqlRenderer.toString(select);
 
 		assertThat(rendered).isEqualTo("SELECT COUNT(foo.*) AS counter FROM foo");
+	}
+
+	@Test // DATAJDBC-479
+	public void shouldRenderWithRenderContext() {
+
+		Table table = Table.create(SqlIdentifier.quoted("my_table"));
+		Table join_table = Table.create(SqlIdentifier.quoted("join_table"));
+		Select select = Select.builder() //
+				.select(Functions.count(table.asterisk()).as("counter"), table.column(SqlIdentifier.quoted("reserved_keyword"))) //
+				.from(table) //
+				.join(join_table).on(table.column("source")).equals(join_table.column("target")).build();
+
+		String rendered = SqlRenderer.create(new RenderContextFactory(PostgresDialect.INSTANCE).createRenderContext())
+				.render(select);
+
+		assertThat(rendered).isEqualTo(
+				"SELECT COUNT(\"my_table\".*) AS counter, \"my_table\".\"reserved_keyword\" FROM \"my_table\" JOIN \"join_table\" ON \"my_table\".source = \"join_table\".target");
+	}
+
+
+	@Test // GH-1034
+	void simpleComparisonWithStringArguments() {
+
+		Table table_user = SQL.table("User");
+		Select select = StatementBuilder
+				.select(table_user.column("name"),table_user.column("age"))
+				.from(table_user)
+				.where(Comparison.create("age",">",20))
+				.build();
+
+		final String rendered = SqlRenderer.toString(select);
+		assertThat(rendered).isEqualTo("SELECT User.name, User.age FROM User WHERE age > 20");
+	}
+
+	@Test // GH-1034
+	void simpleComparison() {
+
+		Table table_user = SQL.table("User");
+		Select select = StatementBuilder
+				.select(table_user.column("name"),table_user.column("age"))
+				.from(table_user)
+				.where(Comparison.create(table_user.column("age"),">",SQL.literalOf(20)))
+				.build();
+
+		final String rendered = SqlRenderer.toString(select);
+		assertThat(rendered).isEqualTo("SELECT User.name, User.age FROM User WHERE User.age > 20");
 	}
 }

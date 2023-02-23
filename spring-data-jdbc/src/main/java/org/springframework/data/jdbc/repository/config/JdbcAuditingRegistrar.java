@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 the original author or authors.
+ * Copyright 2018-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,7 @@ import org.springframework.context.annotation.ImportBeanDefinitionRegistrar;
 import org.springframework.data.auditing.IsNewAwareAuditingHandler;
 import org.springframework.data.auditing.config.AuditingBeanDefinitionRegistrarSupport;
 import org.springframework.data.auditing.config.AuditingConfiguration;
-import org.springframework.data.relational.domain.support.RelationalAuditingCallback;
-import org.springframework.data.relational.domain.support.RelationalAuditingEventListener;
+import org.springframework.data.relational.core.mapping.event.RelationalAuditingCallback;
 import org.springframework.util.Assert;
 
 /**
@@ -43,7 +42,7 @@ class JdbcAuditingRegistrar extends AuditingBeanDefinitionRegistrarSupport {
 
 	/**
 	 * {@inheritDoc}
-	 * 
+	 *
 	 * @return return the {@link EnableJdbcAuditing}
 	 * @see AuditingBeanDefinitionRegistrarSupport#getAnnotation()
 	 */
@@ -54,7 +53,7 @@ class JdbcAuditingRegistrar extends AuditingBeanDefinitionRegistrarSupport {
 
 	/**
 	 * {@inheritDoc}
-	 * 
+	 *
 	 * @return return "{@literal jdbcAuditingHandler}"
 	 * @see AuditingBeanDefinitionRegistrarSupport#getAuditingHandlerBeanName()
 	 */
@@ -78,8 +77,8 @@ class JdbcAuditingRegistrar extends AuditingBeanDefinitionRegistrarSupport {
 	}
 
 	/**
-	 * Register the bean definition of {@link RelationalAuditingEventListener}. {@inheritDoc}
-	 * 
+	 * Register the bean definition of {@link RelationalAuditingCallback}. {@inheritDoc}
+	 *
 	 * @see AuditingBeanDefinitionRegistrarSupport#registerAuditListenerBeanDefinition(BeanDefinition,
 	 *      BeanDefinitionRegistry)
 	 */

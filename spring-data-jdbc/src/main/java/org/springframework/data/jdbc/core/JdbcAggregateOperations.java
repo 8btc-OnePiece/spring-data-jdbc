@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,9 @@
  */
 package org.springframework.data.jdbc.core;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.lang.Nullable;
 
 /**
@@ -22,6 +25,7 @@ import org.springframework.lang.Nullable;
  *
  * @author Jens Schauder
  * @author Thomas Lang
+ * @author Milan Milanov
  */
 public interface JdbcAggregateOperations {
 
@@ -39,7 +43,7 @@ public interface JdbcAggregateOperations {
 	 * <p>
 	 * This is useful if the client provides an id for new aggregate roots.
 	 * </p>
-	 * 
+	 *
 	 * @param instance the aggregate root of the aggregate to be inserted. Must not be {@code null}.
 	 * @param <T> the type of the aggregate root.
 	 * @return the saved instance.
@@ -128,4 +132,26 @@ public interface JdbcAggregateOperations {
 	 * @return whether the aggregate exists.
 	 */
 	<T> boolean existsById(Object id, Class<T> domainType);
+
+	/**
+	 * Load all aggregates of a given type, sorted.
+	 *
+	 * @param domainType the type of the aggregate roots. Must not be {@code null}.
+	 * @param <T> the type of the aggregate roots. Must not be {@code null}.
+	 * @param sort the sorting information. Must not be {@code null}.
+	 * @return Guaranteed to be not {@code null}.
+	 * @since 2.0
+	 */
+	<T> Iterable<T> findAll(Class<T> domainType, Sort sort);
+
+	/**
+	 * Load a page of (potentially sorted) aggregates of a given type.
+	 *
+	 * @param domainType the type of the aggregate roots. Must not be {@code null}.
+	 * @param <T> the type of the aggregate roots. Must not be {@code null}.
+	 * @param pageable the pagination information. Must not be {@code null}.
+	 * @return Guaranteed to be not {@code null}.
+	 * @since 2.0
+	 */
+	<T> Page<T> findAll(Class<T> domainType, Pageable pageable);
 }

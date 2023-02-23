@@ -5,8 +5,7 @@
 
 	<groupId>org.springframework.data</groupId>
 	<artifactId>spring-data-relational-parent</artifactId>
-<!--	<version>1.1.5.RELEASE</version>-->
-	<version>1.1.6.OnePiece.1</version>
+	<version>2.2.11.OnePiece.1</version>
 	<packaging>pom</packaging>
 
 	<name>Spring Data Relational Parent</name>
@@ -16,25 +15,33 @@
 	<parent>
 		<groupId>org.springframework.data.build</groupId>
 		<artifactId>spring-data-parent</artifactId>
-		<version>2.2.5.RELEASE</version>
+		<version>2.5.11</version>
 	</parent>
 
 	<properties>
 		<dist.id>spring-data-jdbc</dist.id>
-		<springdata.commons>2.2.5.RELEASE</springdata.commons>
-		<assertj>3.6.2</assertj>
+		<springdata.commons>2.5.11</springdata.commons>
 		<sonar.dynamicAnalysis>reuseReports</sonar.dynamicAnalysis>
 
-		<degraph-check.version>0.1.4</degraph-check.version>
-
-		<hsqldb.version>2.2.8</hsqldb.version>
-		<mssql.version>7.0.0.jre8</mssql.version>
-		<mybatis.version>3.5.0</mybatis.version>
-		<mybatis-spring.version>2.0.0</mybatis-spring.version>
-		<mysql-connector-java.version>5.1.41</mysql-connector-java.version>
-		<postgresql.version>42.0.0</postgresql.version>
-		<mariadb-java-client.version>2.2.3</mariadb-java-client.version>
+		<!-- dependency versions -->
 		<jsr305.version>3.0.2</jsr305.version>
+		<mybatis-spring.version>2.0.6</mybatis-spring.version>
+		<mybatis.version>3.5.6</mybatis.version>
+
+		<!-- databases and jdbc drivers -->
+		<!-- not that these currently do not control the versions of databases used via Testcontainers for testing -->
+		<db2.version>11.5.5.0</db2.version>
+		<h2.version>1.4.200</h2.version>
+		<hsqldb.version>2.5.2</hsqldb.version>
+		<mariadb-java-client.version>2.7.2</mariadb-java-client.version>
+		<mssql.version>9.2.1.jre8</mssql.version>
+		<mysql-connector-java.version>8.0.23</mysql-connector-java.version>
+		<postgresql.version>42.2.19</postgresql.version>
+		<oracle.version>19.6.0.0</oracle.version>
+
+		<!-- test utilities-->
+		<awaitility.version>4.0.3</awaitility.version>
+		<degraph-check.version>0.1.4</degraph-check.version>
 	</properties>
 
 	<inceptionYear>2017</inceptionYear>
@@ -100,6 +107,24 @@
 						<artifactId>maven-surefire-plugin</artifactId>
 						<executions>
 							<execution>
+								<id>h2-test</id>
+								<phase>test</phase>
+								<goals>
+									<goal>test</goal>
+								</goals>
+								<configuration>
+									<includes>
+										<include>**/*IntegrationTests.java</include>
+									</includes>
+									<excludes>
+										<exclude>**/*HsqlIntegrationTests.java</exclude>
+									</excludes>
+									<systemPropertyVariables>
+										<spring.profiles.active>h2</spring.profiles.active>
+									</systemPropertyVariables>
+								</configuration>
+							</execution>
+							<execution>
 								<id>mysql-test</id>
 								<phase>test</phase>
 								<goals>
@@ -153,25 +178,77 @@
 									</systemPropertyVariables>
 								</configuration>
 							</execution>
-							<!--<execution>-->
-								<!--<id>mssql-test</id>-->
-								<!--<phase>test</phase>-->
-								<!--<goals>-->
-									<!--<goal>test</goal>-->
-								<!--</goals>-->
-								<!--<configuration>-->
-									<!--<includes>-->
-										<!--<include>**/*IntegrationTests.java</include>-->
-									<!--</includes>-->
-									<!--<excludes>-->
-										<!--<exclude>**/*HsqlIntegrationTests.java</exclude>-->
-									<!--</excludes>-->
-									<!--<systemPropertyVariables>-->
-										<!--<spring.profiles.active>mssql</spring.profiles.active>-->
-									<!--</systemPropertyVariables>-->
-								<!--</configuration>-->
-							<!--</execution>-->
+							<execution>
+								<id>db2-test</id>
+								<phase>test</phase>
+								<goals>
+									<goal>test</goal>
+								</goals>
+								<configuration>
+									<includes>
+										<include>**/*IntegrationTests.java</include>
+									</includes>
+									<excludes>
+										<exclude>**/*HsqlIntegrationTests.java</exclude>
+									</excludes>
+									<systemPropertyVariables>
+										<spring.profiles.active>db2</spring.profiles.active>
+									</systemPropertyVariables>
+								</configuration>
+							</execution>
+							<execution>
+								<id>oracle-test</id>
+								<phase>test</phase>
+								<goals>
+									<goal>test</goal>
+								</goals>
+								<configuration>
+									<includes>
+										<include>**/*IntegrationTests.java</include>
+									</includes>
+									<excludes>
+										<exclude>**/*HsqlIntegrationTests.java</exclude>
+									</excludes>
+									<systemPropertyVariables>
+										<spring.profiles.active>oracle</spring.profiles.active>
+									</systemPropertyVariables>
+								</configuration>
+							</execution>
+							<execution>
+								<id>mssql-test</id>
+								<phase>test</phase>
+								<goals>
+									<goal>test</goal>
+								</goals>
+								<configuration>
+									<includes>
+										<include>**/*IntegrationTests.java</include>
+									</includes>
+									<excludes>
+										<exclude>**/*HsqlIntegrationTests.java</exclude>
+									</excludes>
+									<systemPropertyVariables>
+										<spring.profiles.active>mssql</spring.profiles.active>
+									</systemPropertyVariables>
+								</configuration>
+							</execution>
 						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>ignore-missing-license</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<systemPropertyVariables>
+								<on-missing-license>ignore-test</on-missing-license>
+							</systemPropertyVariables>
+						</configuration>
 					</plugin>
 				</plugins>
 			</build>

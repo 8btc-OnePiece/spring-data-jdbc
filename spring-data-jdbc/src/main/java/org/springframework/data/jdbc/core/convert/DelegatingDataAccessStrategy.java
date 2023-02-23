@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
  */
 package org.springframework.data.jdbc.core.convert;
 
-import java.util.Map;
-
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mapping.PersistentPropertyPath;
 import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
-import org.springframework.data.relational.domain.Identifier;
+import org.springframework.data.relational.core.sql.LockMode;
 import org.springframework.util.Assert;
 
 /**
@@ -27,20 +27,14 @@ import org.springframework.util.Assert;
  * cyclic dependencies.
  *
  * @author Jens Schauder
+ * @author Tyler Van Gorder
+ * @author Milan Milanov
+ * @author Myeonghyeon Lee
  * @since 1.1
  */
 public class DelegatingDataAccessStrategy implements DataAccessStrategy {
 
 	private DataAccessStrategy delegate;
-
-	/*
-	 * (non-Javadoc)
-	 * @see org.springframework.data.jdbc.core.DataAccessStrategy#insert(java.lang.Object, java.lang.Class, java.util.Map)
-	 */
-	@Override
-	public <T> Object insert(T instance, Class<T> domainType, Map<String, Object> additionalParameters) {
-		return delegate.insert(instance, domainType, additionalParameters);
-	}
 
 	/*
 	 * (non-Javadoc)
@@ -58,6 +52,16 @@ public class DelegatingDataAccessStrategy implements DataAccessStrategy {
 	@Override
 	public <S> boolean update(S instance, Class<S> domainType) {
 		return delegate.update(instance, domainType);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.jdbc.core.DataAccessStrategy#updateWithVersion(java.lang.Object, java.lang.Class, java.lang.Number)
+	 */
+	@Override
+	public <S> boolean updateWithVersion(S instance, Class<S> domainType, Number nextVersion) {
+		return delegate.updateWithVersion(instance, domainType, nextVersion);
+
 	}
 
 	/*
@@ -80,6 +84,15 @@ public class DelegatingDataAccessStrategy implements DataAccessStrategy {
 
 	/*
 	 * (non-Javadoc)
+	 * @see org.springframework.data.jdbc.core.DataAccessStrategy#deleteWithVersion(java.lang.Object, java.lang.Class, Number)
+	 */
+	@Override
+	public <T> void deleteWithVersion(Object id, Class<T> domainType, Number previousVersion) {
+		delegate.deleteWithVersion(id, domainType, previousVersion);
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * @see org.springframework.data.jdbc.core.DataAccessStrategy#deleteAll(java.lang.Class)
 	 */
 	@Override
@@ -94,6 +107,24 @@ public class DelegatingDataAccessStrategy implements DataAccessStrategy {
 	@Override
 	public void deleteAll(PersistentPropertyPath<RelationalPersistentProperty> propertyPath) {
 		delegate.deleteAll(propertyPath);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.jdbc.core.DataAccessStrategy#acquireLockById(java.lang.Object, org.springframework.data.relational.core.sql.LockMode, java.lang.Class)
+	 */
+	@Override
+	public <T> void acquireLockById(Object id, LockMode lockMode, Class<T> domainType) {
+		delegate.acquireLockById(id, lockMode, domainType);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.jdbc.core.DataAccessStrategy#acquireLockAll(org.springframework.data.relational.core.sql.LockMode, java.lang.Class)
+	 */
+	@Override
+	public <T> void acquireLockAll(LockMode lockMode, Class<T> domainType) {
+		delegate.acquireLockAll(lockMode, domainType);
 	}
 
 	/*
@@ -137,24 +168,12 @@ public class DelegatingDataAccessStrategy implements DataAccessStrategy {
 
 	/*
 	 * (non-Javadoc)
-	 * @see org.springframework.data.jdbc.core.RelationResolver#findAllByPath(org.springframework.data.relational.domain.Identifier, org.springframework.data.mapping.PersistentPropertyPath)
+	 * @see org.springframework.data.jdbc.core.RelationResolver#findAllByPath(org.springframework.data.jdbc.support.Identifier, org.springframework.data.mapping.PersistentPropertyPath)
 	 */
 	@Override
 	public Iterable<Object> findAllByPath(Identifier identifier,
-			PersistentPropertyPath<RelationalPersistentProperty> path) {
+			PersistentPropertyPath<? extends RelationalPersistentProperty> path) {
 		return delegate.findAllByPath(identifier, path);
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * @see org.springframework.data.jdbc.core.DataAccessStrategy#findAllByProperty(java.lang.Object, org.springframework.data.relational.core.mapping.RelationalPersistentProperty)
-	 */
-	@Override
-	public <T> Iterable<T> findAllByProperty(Object rootId, RelationalPersistentProperty property) {
-
-		Assert.notNull(delegate, "Delegate is null");
-
-		return delegate.findAllByProperty(rootId, property);
 	}
 
 	/*
@@ -164,6 +183,24 @@ public class DelegatingDataAccessStrategy implements DataAccessStrategy {
 	@Override
 	public <T> boolean existsById(Object id, Class<T> domainType) {
 		return delegate.existsById(id, domainType);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.jdbc.core.JdbcAggregateOperations#findAll(java.lang.Class, org.springframework.data.domain.Sort)
+	 */
+	@Override
+	public <T> Iterable<T> findAll(Class<T> domainType, Sort sort) {
+		return delegate.findAll(domainType, sort);
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.jdbc.core.JdbcAggregateOperations#findAll(java.lang.Class, org.springframework.data.domain.Pageable)
+	 */
+	@Override
+	public <T> Iterable<T> findAll(Class<T> domainType, Pageable pageable) {
+		return delegate.findAll(domainType, pageable);
 	}
 
 	/**

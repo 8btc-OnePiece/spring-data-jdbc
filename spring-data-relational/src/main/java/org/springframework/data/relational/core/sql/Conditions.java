@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import org.springframework.util.Assert;
  *
  * @author Mark Paluch
  * @author Jens Schauder
+ * @author Meng Zuozhu
  * @since 1.1
  * @see SQL
  * @see Expressions
@@ -41,6 +42,18 @@ public abstract class Conditions {
 	 */
 	public static Condition just(String sql) {
 		return new ConstantCondition(sql);
+	}
+
+	/**
+	 * Creates a nested {@link Condition} that is enclosed with parentheses. Useful to combine {@code AND} and {@code OR}
+	 * statements.
+	 *
+	 * @param condition the nested condition.
+	 * @return a {@link NestedCondition}.
+	 * @since 2.0
+	 */
+	public static Condition nest(Condition condition) {
+		return new NestedCondition(condition);
 	}
 
 	/**
@@ -73,6 +86,32 @@ public abstract class Conditions {
 	 */
 	public static Comparison isNotEqual(Expression leftColumnOrExpression, Expression rightColumnOrExpression) {
 		return Comparison.create(leftColumnOrExpression, "!=", rightColumnOrExpression);
+	}
+
+	/**
+	 * Creates a {@code BETWEEN} {@link Condition}.
+	 *
+	 * @param columnOrExpression left side of the comparison.
+	 * @param begin begin value of the comparison.
+	 * @param end end value of the comparison.
+	 * @return the {@link Comparison} condition.
+	 * @since 2.0
+	 */
+	public static Between between(Expression columnOrExpression, Expression begin, Expression end) {
+		return Between.create(columnOrExpression, begin, end);
+	}
+
+	/**
+	 * Creates a {@code NOT BETWEEN} {@link Condition}.
+	 *
+	 * @param columnOrExpression left side of the comparison.
+	 * @param begin begin value of the comparison.
+	 * @param end end value of the comparison.
+	 * @return the {@link Comparison} condition.
+	 * @since 2.0
+	 */
+	public static Between notBetween(Expression columnOrExpression, Expression begin, Expression end) {
+		return between(columnOrExpression, begin, end).not();
 	}
 
 	/**
@@ -130,6 +169,18 @@ public abstract class Conditions {
 	 */
 	public static Like like(Expression leftColumnOrExpression, Expression rightColumnOrExpression) {
 		return Like.create(leftColumnOrExpression, rightColumnOrExpression);
+	}
+
+	/**
+	 * Creates a {@code NOT LIKE} {@link Condition}.
+	 *
+	 * @param leftColumnOrExpression left side of the comparison.
+	 * @param rightColumnOrExpression right side of the comparison.
+	 * @return the {@link Comparison} condition.
+	 * @since 2.0
+	 */
+	public static Like notLike(Expression leftColumnOrExpression, Expression rightColumnOrExpression) {
+		return Like.create(leftColumnOrExpression, rightColumnOrExpression).not();
 	}
 
 	/**
@@ -204,7 +255,7 @@ public abstract class Conditions {
 		Assert.notNull(columnOrExpression, "Comparison column or expression must not be null");
 		Assert.notNull(arg, "Expression argument must not be null");
 
-		return In.create(columnOrExpression, arg);
+		return In.createNotIn(columnOrExpression, arg);
 	}
 
 	/**

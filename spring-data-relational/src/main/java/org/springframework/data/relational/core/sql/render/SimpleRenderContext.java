@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 package org.springframework.data.relational.core.sql.render;
 
-import lombok.Value;
+import org.springframework.data.relational.core.sql.IdentifierProcessing;
 
 /**
  * Default {@link RenderContext} implementation.
@@ -23,14 +23,34 @@ import lombok.Value;
  * @author Mark Paluch
  * @since 1.1
  */
-@Value
-class SimpleRenderContext implements RenderContext {
+final class SimpleRenderContext implements RenderContext {
 
 	private final RenderNamingStrategy namingStrategy;
+
+	SimpleRenderContext(RenderNamingStrategy namingStrategy) {
+		this.namingStrategy = namingStrategy;
+	}
+
+	@Override
+	public IdentifierProcessing getIdentifierProcessing() {
+		return IdentifierProcessing.NONE;
+	}
 
 	@Override
 	public SelectRenderContext getSelect() {
 		return DefaultSelectRenderContext.INSTANCE;
+	}
+
+	public RenderNamingStrategy getNamingStrategy() {
+		return this.namingStrategy;
+	}
+
+	@Override
+	public String toString() {
+
+		return "SimpleRenderContext{" +
+				"namingStrategy=" + namingStrategy +
+				'}';
 	}
 
 	enum DefaultSelectRenderContext implements SelectRenderContext {

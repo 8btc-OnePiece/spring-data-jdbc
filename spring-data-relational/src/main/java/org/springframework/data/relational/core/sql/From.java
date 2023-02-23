@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package org.springframework.data.relational.core.sql;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.springframework.util.StringUtils;
@@ -38,7 +39,11 @@ public class From extends AbstractSegment {
 
 		super(tables.toArray(new Table[] {}));
 
-		this.tables = tables;
+		this.tables = Collections.unmodifiableList(tables);
+	}
+
+	public List<Table> getTables() {
+		return this.tables;
 	}
 
 	/*

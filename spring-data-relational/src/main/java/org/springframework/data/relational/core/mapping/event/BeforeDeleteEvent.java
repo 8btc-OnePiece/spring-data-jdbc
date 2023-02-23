@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,27 +15,24 @@
  */
 package org.springframework.data.relational.core.mapping.event;
 
-import java.util.Optional;
-
 import org.springframework.data.relational.core.conversion.AggregateChange;
-import org.springframework.data.relational.core.mapping.event.Identifier.Specified;
+import org.springframework.lang.Nullable;
 
 /**
- * Gets published when an entity is about to get deleted. The contained {@link AggregateChange} is mutable and may be
- * changed in order to change the actions that get performed on the database as part of the delete operation.
+ * Gets published when an entity is about to get deleted.
  *
  * @author Jens Schauder
  */
-public class BeforeDeleteEvent extends RelationalEventWithId {
+public class BeforeDeleteEvent<E> extends RelationalDeleteEvent<E> {
 
-	private static final long serialVersionUID = -5483432053368496651L;
+	private static final long serialVersionUID = -137285843224094551L;
 
 	/**
-	 * @param id the id of the entity
-	 * @param entity the entity about to get deleted. Might be empty.
-	 * @param change the {@link AggregateChange} encoding the planned actions to be performed on the database.
+	 * @param id the id of the entity. Must not be {@literal null}.
+	 * @param entity the entity about to get deleted. May be {@literal null}.
+	 * @param change the {@link AggregateChange} containing the planned actions to be performed on the database.
 	 */
-	public <T> BeforeDeleteEvent(Specified id, Optional<?> entity, AggregateChange change) {
+	public BeforeDeleteEvent(Identifier id, @Nullable E entity, AggregateChange<E> change) {
 		super(id, entity, change);
 	}
 }

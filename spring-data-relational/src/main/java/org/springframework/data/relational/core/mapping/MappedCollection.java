@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * The annotation to configure the mapping for a {@link List} or {@link Map} property in the database.
+ * The annotation to configure the mapping for a {@link List}, {@link Set} or {@link Map} property in the database.
  *
  * @since 1.1
  * @author Bastian Wilhelm

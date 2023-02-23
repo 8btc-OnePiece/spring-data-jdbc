@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.data.relational.core.sql.render;
 import java.util.function.Function;
 
 import org.springframework.data.relational.core.sql.Column;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.relational.core.sql.Table;
 import org.springframework.data.relational.core.sql.render.NamingStrategies.DelegatingRenderNamingStrategy;
 import org.springframework.util.Assert;
@@ -38,7 +39,7 @@ public interface RenderNamingStrategy {
 	 * @return the {@link Column#getName() column name}.
 	 * @see Column#getName()
 	 */
-	default String getName(Column column) {
+	default SqlIdentifier getName(Column column) {
 		return column.getName();
 	}
 
@@ -49,7 +50,7 @@ public interface RenderNamingStrategy {
 	 * @return the {@link Column#getName() column reference name}.
 	 * @see Column#getReferenceName() ()
 	 */
-	default String getReferenceName(Column column) {
+	default SqlIdentifier getReferenceName(Column column) {
 		return column.getReferenceName();
 	}
 
@@ -60,7 +61,7 @@ public interface RenderNamingStrategy {
 	 * @return the {@link Table#getName() table name}.
 	 * @see Table#getName()
 	 */
-	default String getName(Table table) {
+	default SqlIdentifier getName(Table table) {
 		return table.getName();
 	}
 
@@ -71,7 +72,7 @@ public interface RenderNamingStrategy {
 	 * @return the {@link Table#getReferenceName() table name}.
 	 * @see Table#getReferenceName()
 	 */
-	default String getReferenceName(Table table) {
+	default SqlIdentifier getReferenceName(Table table) {
 		return table.getReferenceName();
 	}
 

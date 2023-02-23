@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -149,7 +149,7 @@ public class In extends AbstractSegment implements Condition {
 		return new In(columnOrExpression, Arrays.asList(expressions), true);
 	}
 
-	/* 
+	/*
 	 * (non-Javadoc)
 	 * @see org.springframework.data.relational.core.sql.Condition#not()
 	 */
@@ -158,13 +158,26 @@ public class In extends AbstractSegment implements Condition {
 		return new In(left, expressions, !notIn);
 	}
 
+	/**
+	 * @return {@code true} if this condition has at least one expression.
+	 * @since 2.1
+	 */
+	public boolean hasExpressions() {
+		return !expressions.isEmpty();
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
 	public String toString() {
-		return left + (notIn ? " NOT" : "") + " IN (" + StringUtils.collectionToDelimitedString(expressions, ", ") + ")";
+
+		if (hasExpressions()) {
+			return left + (notIn ? " NOT" : "") + " IN (" + StringUtils.collectionToDelimitedString(expressions, ", ") + ")";
+		}
+
+		return notIn ? TrueCondition.INSTANCE.toString() : FalseCondition.INSTANCE.toString();
 	}
 
 	public boolean isNotIn() {

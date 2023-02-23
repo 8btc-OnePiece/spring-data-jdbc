@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,9 @@ package org.springframework.data.relational.core.sql;
  *
  * @author Mark Paluch
  * @since 1.1
+ * @deprecated since 2.2.5 use {@link Comparison} instead.
  */
+@Deprecated
 public class SimpleCondition extends AbstractSegment implements Condition {
 
 	private final Expression expression;
@@ -40,20 +42,29 @@ public class SimpleCondition extends AbstractSegment implements Condition {
 
 	/**
 	 * Creates a simple {@link Condition} given {@code column}, {@code comparator} and {@code predicate}.
-	 *
-	 * @param column
-	 * @param comparator
-	 * @param predicate
-	 * @return
 	 */
 	public static SimpleCondition create(String column, String comparator, String predicate) {
 		return new SimpleCondition(new Column(column, null), comparator, predicate);
 	}
 
+	/**
+	 * @return the condition expression (left-hand-side)
+	 * @since 2.0
+	 */
+	public Expression getExpression() {
+		return expression;
+	}
+
+	/**
+	 * @return the comparator.
+	 */
 	public String getComparator() {
 		return comparator;
 	}
 
+	/**
+	 * @return the condition predicate (right-hand-side)
+	 */
 	public String getPredicate() {
 		return predicate;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,17 +15,15 @@
  */
 package org.springframework.data.jdbc.core.convert;
 
-import lombok.RequiredArgsConstructor;
-
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.data.relational.core.mapping.PersistentPropertyPathExtension;
-import org.springframework.data.relational.domain.Identifier;
+import org.springframework.data.relational.core.sql.IdentifierProcessing;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.lang.NonNull;
 
 /**
  * A {@link RowMapper} that maps a row to a {@link Map.Entry} so an {@link Iterable} of those can be converted to a
@@ -34,19 +32,28 @@ import org.springframework.lang.NonNull;
  *
  * @author Jens Schauder
  */
-@RequiredArgsConstructor
 class MapEntityRowMapper<T> implements RowMapper<Map.Entry<Object, T>> {
 
 	private final PersistentPropertyPathExtension path;
 	private final JdbcConverter converter;
 	private final Identifier identifier;
+	private final SqlIdentifier keyColumn;
+	private final IdentifierProcessing identifierProcessing;
 
-	private final String keyColumn;
+	MapEntityRowMapper(PersistentPropertyPathExtension path, JdbcConverter converter, Identifier identifier,
+			SqlIdentifier keyColumn, IdentifierProcessing identifierProcessing) {
 
-	@NonNull
+		this.path = path;
+		this.converter = converter;
+		this.identifier = identifier;
+		this.keyColumn = keyColumn;
+		this.identifierProcessing = identifierProcessing;
+	}
+
 	@Override
 	public Map.Entry<Object, T> mapRow(ResultSet rs, int rowNum) throws SQLException {
-		Object key = rs.getObject(keyColumn);
+
+		Object key = rs.getObject(keyColumn.getReference(identifierProcessing));
 		return new HashMap.SimpleEntry<>(key, mapEntity(rs, key));
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
  */
 package org.springframework.data.jdbc.core.convert;
 
-import lombok.RequiredArgsConstructor;
-
 import java.util.Map;
 
+import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
+import org.springframework.util.Assert;
 import org.springframework.util.ConcurrentReferenceHashMap;
 
 /**
@@ -27,14 +27,38 @@ import org.springframework.util.ConcurrentReferenceHashMap;
  * domain type, the same generator will get returned.
  *
  * @author Jens Schauder
+ * @author Mark Paluch
+ * @author Milan Milanov
  */
-@RequiredArgsConstructor
 public class SqlGeneratorSource {
 
 	private final Map<Class<?>, SqlGenerator> CACHE = new ConcurrentReferenceHashMap<>();
 	private final RelationalMappingContext context;
+	private final JdbcConverter converter;
+	private final Dialect dialect;
+
+	public SqlGeneratorSource(RelationalMappingContext context, JdbcConverter converter, Dialect dialect) {
+
+		Assert.notNull(context, "Context must not be null.");
+		Assert.notNull(converter, "Converter must not be null.");
+		Assert.notNull(dialect, "Dialect must not be null.");
+
+		this.context = context;
+		this.converter = converter;
+		this.dialect = dialect;
+	}
+
+	/**
+	 * @return the {@link Dialect} used by the created {@link SqlGenerator} instances. Guaranteed to be not
+	 *         {@literal null}.
+	 */
+	public Dialect getDialect() {
+		return dialect;
+	}
 
 	SqlGenerator getSqlGenerator(Class<?> domainType) {
-		return CACHE.computeIfAbsent(domainType, t -> new SqlGenerator(context, context.getRequiredPersistentEntity(t)));
+
+		return CACHE.computeIfAbsent(domainType,
+				t -> new SqlGenerator(context, converter, context.getRequiredPersistentEntity(t), dialect));
 	}
 }

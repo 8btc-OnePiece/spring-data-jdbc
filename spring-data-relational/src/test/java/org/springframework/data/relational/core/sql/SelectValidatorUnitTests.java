@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,14 +15,15 @@
  */
 package org.springframework.data.relational.core.sql;
 
-import static org.assertj.core.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.*;
 
 /**
  * Unit tests for {@link SelectValidator}.
  *
  * @author Mark Paluch
+ * @author Jens Schauder
  */
 public class SelectValidatorUnitTests {
 
@@ -83,7 +84,7 @@ public class SelectValidatorUnitTests {
 		assertThatThrownBy(() -> {
 			StatementBuilder.select(bar.column("foo")) //
 					.from(bar) //
-					.where(new SimpleCondition(column, "=", "foo")) //
+					.where(column.isEqualTo(SQL.literalOf("foo"))) //
 					.build();
 		}).isInstanceOf(IllegalStateException.class)
 				.hasMessageContaining("Required table [table] by a WHERE predicate not imported by FROM [bar] or JOIN []");

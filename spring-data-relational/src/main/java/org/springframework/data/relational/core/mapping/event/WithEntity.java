@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,21 @@
  */
 package org.springframework.data.relational.core.mapping.event;
 
+import org.springframework.lang.NonNull;
+
 /**
- * Interface for {@link SimpleRelationalEvent}s which are guaranteed to have an entity. Allows direct access to that
- * entity, without going through an {@link java.util.Optional}
+ * Interface for events which are guaranteed to have an entity.
  *
  * @author Jens Schauder
  */
-public interface WithEntity extends RelationalEvent {
+public interface WithEntity<E> extends RelationalEvent<E> {
 
 	/**
+	 * Overridden in order to change nullability.
+	 *
 	 * @return will never be {@literal null}.
 	 */
-	default Object getEntity() {
-		return getOptionalEntity().orElseThrow(() -> new IllegalStateException("Entity must not be NULL"));
-	}
+	@Override
+	@NonNull
+	E getEntity();
 }

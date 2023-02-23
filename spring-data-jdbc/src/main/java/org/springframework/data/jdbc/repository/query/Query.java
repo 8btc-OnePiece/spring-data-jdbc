@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 the original author or authors.
+ * Copyright 2018-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,8 @@ import org.springframework.jdbc.core.RowMapper;
  * parameters will get bound to the arguments of the annotated method.
  *
  * @author Jens Schauder
+ * @author Moises Cisneros
+ * @author Hebert Coelho
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
@@ -41,7 +43,13 @@ public @interface Query {
 	/**
 	 * The SQL statement to execute when the annotated method gets invoked.
 	 */
-	String value();
+	String value() default "";
+
+	/**
+	 * The named query to be used. If not defined, the name of
+	 * {@code ${domainClass}.${queryMethodName}} will be used.
+	 */
+	String name() default "";
 
 	/**
 	 * Optional {@link RowMapper} to use to convert the result of the query to domain class instances. Cannot be used
@@ -50,8 +58,24 @@ public @interface Query {
 	Class<? extends RowMapper> rowMapperClass() default RowMapper.class;
 
 	/**
+	 * Optional name of a bean of type {@link RowMapper} to use to convert the result of the query to domain class instances. Cannot be used
+	 * along with {@link #resultSetExtractorClass()} only one of the two can be set.
+	 *
+	 * @since 2.1
+	 */
+	String rowMapperRef() default "";
+
+	/**
 	 * Optional {@link ResultSetExtractor} to use to convert the result of the query to domain class instances. Cannot be
 	 * used along with {@link #rowMapperClass()} only one of the two can be set.
 	 */
 	Class<? extends ResultSetExtractor> resultSetExtractorClass() default ResultSetExtractor.class;
+
+	/**
+	 * Optional name of a bean of type {@link ResultSetExtractor} to use to convert the result of the query to domain class instances. Cannot be
+	 * used along with {@link #rowMapperClass()} only one of the two can be set.
+	 *
+	 * @since 2.1
+	 */
+	String resultSetExtractorRef() default "";
 }

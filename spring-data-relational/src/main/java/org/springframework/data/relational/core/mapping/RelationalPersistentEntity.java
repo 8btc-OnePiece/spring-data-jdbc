@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package org.springframework.data.relational.core.mapping;
 
 import org.springframework.data.mapping.model.MutablePersistentEntity;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
 
 /**
  * A {@link org.springframework.data.mapping.PersistentEntity} interface with additional methods for JDBC/RDBMS related
@@ -31,12 +32,12 @@ public interface RelationalPersistentEntity<T> extends MutablePersistentEntity<T
 	 *
 	 * @return the table name.
 	 */
-	String getTableName();
+	SqlIdentifier getTableName();
 
 	/**
 	 * Returns the column representing the identifier.
 	 *
 	 * @return will never be {@literal null}.
 	 */
-	String getIdColumn();
+	SqlIdentifier getIdColumn();
 }

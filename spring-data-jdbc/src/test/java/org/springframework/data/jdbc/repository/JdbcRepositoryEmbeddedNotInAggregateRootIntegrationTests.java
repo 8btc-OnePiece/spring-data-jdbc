@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,28 +17,33 @@ package org.springframework.data.jdbc.repository;
 
 import static java.util.Arrays.*;
 import static org.assertj.core.api.Assertions.*;
+import static org.springframework.test.context.TestExecutionListeners.MergeMode.*;
 
 import lombok.Data;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
+import java.sql.SQLException;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.jdbc.repository.support.JdbcRepositoryFactory;
+import org.springframework.data.jdbc.testing.AssumeFeatureTestExecutionListener;
 import org.springframework.data.jdbc.testing.TestConfiguration;
+import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Embedded;
 import org.springframework.data.relational.core.mapping.Embedded.OnEmpty;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
+import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,42 +54,46 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @ContextConfiguration
 @Transactional
+@TestExecutionListeners(value = AssumeFeatureTestExecutionListener.class, mergeMode = MERGE_WITH_DEFAULTS)
+@ExtendWith(SpringExtension.class)
 public class JdbcRepositoryEmbeddedNotInAggregateRootIntegrationTests {
-
-	@Configuration
-	@Import(TestConfiguration.class)
-	static class Config {
-
-		@Autowired JdbcRepositoryFactory factory;
-
-		@Bean
-		Class<?> testClass() {
-			return JdbcRepositoryEmbeddedNotInAggregateRootIntegrationTests.class;
-		}
-
-		@Bean
-		DummyEntityRepository dummyEntityRepository() {
-			return factory.getRepository(DummyEntityRepository.class);
-		}
-
-	}
-
-	@ClassRule public static final SpringClassRule classRule = new SpringClassRule();
-	@Rule public SpringMethodRule methodRule = new SpringMethodRule();
 
 	@Autowired NamedParameterJdbcTemplate template;
 	@Autowired DummyEntityRepository repository;
+	@Autowired Dialect dialect;
+
+	private static DummyEntity createDummyEntity() {
+		DummyEntity entity = new DummyEntity();
+
+		entity.setTest("rootTest");
+
+		final DummyEntity2 dummyEntity2 = new DummyEntity2();
+		dummyEntity2.setTest("c1");
+
+		final Embeddable embeddable = new Embeddable();
+		embeddable.setAttr(1L);
+		dummyEntity2.setEmbeddable(embeddable);
+
+		entity.setDummyEntity2(dummyEntity2);
+
+		return entity;
+	}
 
 	@Test // DATAJDBC-111
-	public void savesAnEntity() {
+	public void savesAnEntity() throws SQLException {
 
 		DummyEntity entity = repository.save(createDummyEntity());
 
-		assertThat(JdbcTestUtils.countRowsInTableWhere((JdbcTemplate) template.getJdbcOperations(), "dummy_entity",
-				"id = " + entity.getId())).isEqualTo(1);
+		assertThat(countRowsInTable("dummy_entity", entity.getId())).isEqualTo(1);
+		assertThat(countRowsInTable("dummy_entity2", entity.getId())).isEqualTo(1);
+	}
 
-		assertThat(JdbcTestUtils.countRowsInTableWhere((JdbcTemplate) template.getJdbcOperations(), "dummy_entity2",
-				"id = " + entity.getId())).isEqualTo(1);
+	private int countRowsInTable(String name, long idValue) {
+
+		SqlIdentifier id = SqlIdentifier.quoted("ID");
+		String whereClause = id.toSql(dialect.getIdentifierProcessing()) + " = " + idValue;
+
+		return JdbcTestUtils.countRowsInTableWhere((JdbcTemplate) template.getJdbcOperations(), name, whereClause);
 	}
 
 	@Test // DATAJDBC-111
@@ -95,7 +104,8 @@ public class JdbcRepositoryEmbeddedNotInAggregateRootIntegrationTests {
 		assertThat(repository.findById(entity.getId())).hasValueSatisfying(it -> {
 			assertThat(it.getId()).isEqualTo(entity.getId());
 			assertThat(it.getDummyEntity2().getTest()).isEqualTo(entity.getDummyEntity2().getTest());
-			assertThat(it.getDummyEntity2().getEmbeddable().getAttr()).isEqualTo(entity.getDummyEntity2().getEmbeddable().getAttr());
+			assertThat(it.getDummyEntity2().getEmbeddable().getAttr())
+					.isEqualTo(entity.getDummyEntity2().getEmbeddable().getAttr());
 		});
 	}
 
@@ -130,7 +140,8 @@ public class JdbcRepositoryEmbeddedNotInAggregateRootIntegrationTests {
 
 		assertThat(repository.findById(entity.getId())).hasValueSatisfying(it -> {
 			assertThat(it.getDummyEntity2().getTest()).isEqualTo(saved.getDummyEntity2().getTest());
-			assertThat(it.getDummyEntity2().getEmbeddable().getAttr()).isEqualTo(saved.getDummyEntity2().getEmbeddable().getAttr());
+			assertThat(it.getDummyEntity2().getEmbeddable().getAttr())
+					.isEqualTo(saved.getDummyEntity2().getEmbeddable().getAttr());
 		});
 	}
 
@@ -154,7 +165,8 @@ public class JdbcRepositoryEmbeddedNotInAggregateRootIntegrationTests {
 
 		assertThat(repository.findAll()) //
 				.extracting(d -> d.getDummyEntity2().getEmbeddable().getAttr()) //
-				.containsExactlyInAnyOrder(entity.getDummyEntity2().getEmbeddable().getAttr(), other.getDummyEntity2().getEmbeddable().getAttr());
+				.containsExactlyInAnyOrder(entity.getDummyEntity2().getEmbeddable().getAttr(),
+						other.getDummyEntity2().getEmbeddable().getAttr());
 	}
 
 	@Test // DATAJDBC-111
@@ -173,6 +185,7 @@ public class JdbcRepositoryEmbeddedNotInAggregateRootIntegrationTests {
 
 	@Test // DATAJDBC-111
 	public void deleteByEntity() {
+
 		DummyEntity one = repository.save(createDummyEntity());
 		DummyEntity two = repository.save(createDummyEntity());
 		DummyEntity three = repository.save(createDummyEntity());
@@ -212,43 +225,42 @@ public class JdbcRepositoryEmbeddedNotInAggregateRootIntegrationTests {
 		assertThat(repository.findAll()).isEmpty();
 	}
 
-	private static DummyEntity createDummyEntity() {
-		DummyEntity entity = new DummyEntity();
-
-		entity.setTest("rootTest");
-
-		final DummyEntity2 dummyEntity2 = new DummyEntity2();
-		dummyEntity2.setTest("c1");
-
-		final Embeddable embeddable = new Embeddable();
-		embeddable.setAttr(1L);
-		dummyEntity2.setEmbeddable(embeddable);
-
-		entity.setDummyEntity2(dummyEntity2);
-
-		return entity;
-	}
-
 	interface DummyEntityRepository extends CrudRepository<DummyEntity, Long> {}
+
+	@Configuration
+	@Import(TestConfiguration.class)
+	static class Config {
+
+		@Autowired JdbcRepositoryFactory factory;
+
+		@Bean
+		Class<?> testClass() {
+			return JdbcRepositoryEmbeddedNotInAggregateRootIntegrationTests.class;
+		}
+
+		@Bean
+		DummyEntityRepository dummyEntityRepository() {
+			return factory.getRepository(DummyEntityRepository.class);
+		}
+
+	}
 
 	@Data
 	static class DummyEntity {
-		@Id Long id;
+		@Column("ID") @Id Long id;
 
 		String test;
 
-		@Column("id")
-		DummyEntity2 dummyEntity2;
+		@Column("ID") DummyEntity2 dummyEntity2;
 	}
 
 	@Data
 	static class DummyEntity2 {
-		@Id Long id;
+		@Column("ID") @Id Long id;
 
 		String test;
 
-		@Embedded(onEmpty = OnEmpty.USE_NULL, prefix = "prefix_")
-		Embeddable embeddable;
+		@Embedded(onEmpty = OnEmpty.USE_NULL, prefix = "prefix_") Embeddable embeddable;
 	}
 
 	@Data

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,10 @@ package org.springframework.data.relational.core.dialect;
 
 import static org.assertj.core.api.Assertions.*;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import org.springframework.data.relational.core.sql.LockMode;
 import org.springframework.data.relational.core.sql.Select;
 import org.springframework.data.relational.core.sql.StatementBuilder;
 import org.springframework.data.relational.core.sql.Table;
@@ -31,12 +32,13 @@ import org.springframework.data.relational.core.sql.render.SqlRenderer;
  *
  * @author Mark Paluch
  * @author Jens Schauder
+ * @author Myeonghyeon Lee
  */
 public class SqlServerDialectRenderingUnitTests {
 
 	private final RenderContextFactory factory = new RenderContextFactory(SqlServerDialect.INSTANCE);
 
-	@Before
+	@BeforeEach
 	public void before() {
 		factory.setNamingStrategy(NamingStrategies.asIs());
 	}
@@ -111,5 +113,83 @@ public class SqlServerDialectRenderingUnitTests {
 		String sql = SqlRenderer.create(factory.createRenderContext()).render(select);
 
 		assertThat(sql).isEqualTo("SELECT foo.* FROM foo ORDER BY column_1 OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY");
+	}
+
+	@Test // DATAJDBC-498
+	public void shouldRenderSelectWithLockWrite() {
+
+		Table table = Table.create("foo");
+		LockMode lockMode = LockMode.PESSIMISTIC_WRITE;
+		Select select = StatementBuilder.select(table.asterisk()).from(table).lock(lockMode).build();
+
+		String sql = SqlRenderer.create(factory.createRenderContext()).render(select);
+
+		assertThat(sql).isEqualTo(
+			"SELECT foo.* FROM foo WITH (UPDLOCK, ROWLOCK)");
+	}
+
+	@Test // DATAJDBC-498
+	public void shouldRenderSelectWithLockRead() {
+
+		Table table = Table.create("foo");
+		LockMode lockMode = LockMode.PESSIMISTIC_READ;
+		Select select = StatementBuilder.select(table.asterisk()).from(table).lock(lockMode).build();
+
+		String sql = SqlRenderer.create(factory.createRenderContext()).render(select);
+
+		assertThat(sql).isEqualTo(
+			"SELECT foo.* FROM foo WITH (HOLDLOCK, ROWLOCK)");
+	}
+
+	@Test // DATAJDBC-498
+	public void shouldRenderSelectWithLimitOffsetWithLockWrite() {
+
+		Table table = Table.create("foo");
+		LockMode lockMode = LockMode.PESSIMISTIC_WRITE;
+		Select select = StatementBuilder.select(table.asterisk()).from(table).limit(10).offset(20).lock(lockMode).build();
+
+		String sql = SqlRenderer.create(factory.createRenderContext()).render(select);
+
+		assertThat(sql).isEqualTo(
+			"SELECT foo.*, ROW_NUMBER() over (ORDER BY (SELECT 1)) AS __relational_row_number__ FROM foo WITH (UPDLOCK, ROWLOCK) ORDER BY __relational_row_number__ OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY");
+	}
+
+	@Test // DATAJDBC-498
+	public void shouldRenderSelectWithLimitOffsetWithLockRead() {
+
+		Table table = Table.create("foo");
+		LockMode lockMode = LockMode.PESSIMISTIC_READ;
+		Select select = StatementBuilder.select(table.asterisk()).from(table).limit(10).offset(20).lock(lockMode).build();
+
+		String sql = SqlRenderer.create(factory.createRenderContext()).render(select);
+
+		assertThat(sql).isEqualTo(
+			"SELECT foo.*, ROW_NUMBER() over (ORDER BY (SELECT 1)) AS __relational_row_number__ FROM foo WITH (HOLDLOCK, ROWLOCK) ORDER BY __relational_row_number__ OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY");
+	}
+
+	@Test // DATAJDBC-498
+	public void shouldRenderSelectWithLimitOffsetAndOrderByWithLockWrite() {
+
+		Table table = Table.create("foo");
+		LockMode lockMode = LockMode.PESSIMISTIC_WRITE;
+		Select select = StatementBuilder.select(table.asterisk()).from(table).orderBy(table.column("column_1")).limit(10)
+			.offset(20).lock(lockMode).build();
+
+		String sql = SqlRenderer.create(factory.createRenderContext()).render(select);
+
+		assertThat(sql).isEqualTo("SELECT foo.* FROM foo WITH (UPDLOCK, ROWLOCK) ORDER BY column_1 OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY");
+	}
+
+	@Test // DATAJDBC-498
+	public void shouldRenderSelectWithLimitOffsetAndOrderByWithLockRead() {
+
+		Table table = Table.create("foo");
+		LockMode lockMode = LockMode.PESSIMISTIC_READ;
+		Select select = StatementBuilder.select(table.asterisk()).from(table).orderBy(table.column("column_1")).limit(10)
+			.offset(20).lock(lockMode).build();
+
+		String sql = SqlRenderer.create(factory.createRenderContext()).render(select);
+
+		assertThat(sql).isEqualTo("SELECT foo.* FROM foo WITH (HOLDLOCK, ROWLOCK) ORDER BY column_1 OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY");
 	}
 }

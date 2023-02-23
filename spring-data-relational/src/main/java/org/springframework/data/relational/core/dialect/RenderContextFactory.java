@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,7 @@
  */
 package org.springframework.data.relational.core.dialect;
 
-import lombok.RequiredArgsConstructor;
-
+import org.springframework.data.relational.core.sql.IdentifierProcessing;
 import org.springframework.data.relational.core.sql.render.NamingStrategies;
 import org.springframework.data.relational.core.sql.render.RenderContext;
 import org.springframework.data.relational.core.sql.render.RenderNamingStrategy;
@@ -68,18 +67,28 @@ public class RenderContextFactory {
 
 		SelectRenderContext select = dialect.getSelectContext();
 
-		return new DialectRenderContext(namingStrategy, select);
+		return new DialectRenderContext(namingStrategy, dialect.getIdentifierProcessing(), select);
 	}
 
 	/**
 	 * {@link RenderContext} derived from {@link Dialect} specifics.
 	 */
-	@RequiredArgsConstructor
 	static class DialectRenderContext implements RenderContext {
 
 		private final RenderNamingStrategy renderNamingStrategy;
-
+		private final IdentifierProcessing identifierProcessing;
 		private final SelectRenderContext selectRenderContext;
+
+		DialectRenderContext(RenderNamingStrategy renderNamingStrategy, IdentifierProcessing identifierProcessing, SelectRenderContext selectRenderContext) {
+
+			Assert.notNull(renderNamingStrategy, "RenderNamingStrategy must not be null");
+			Assert.notNull(identifierProcessing, "IdentifierProcessing must not be null");
+			Assert.notNull(selectRenderContext, "SelectRenderContext must not be null");
+
+			this.renderNamingStrategy = renderNamingStrategy;
+			this.identifierProcessing = identifierProcessing;
+			this.selectRenderContext = selectRenderContext;
+		}
 
 		/*
 		 * (non-Javadoc)
@@ -88,6 +97,15 @@ public class RenderContextFactory {
 		@Override
 		public RenderNamingStrategy getNamingStrategy() {
 			return renderNamingStrategy;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see org.springframework.data.relational.core.sql.render.RenderContext#getIdentifierProcessing()
+		 */
+		@Override
+		public IdentifierProcessing getIdentifierProcessing() {
+			return identifierProcessing;
 		}
 
 		/*

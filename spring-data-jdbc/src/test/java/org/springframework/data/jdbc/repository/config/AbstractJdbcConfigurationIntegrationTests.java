@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,19 +19,24 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.data.convert.WritingConverter;
 import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
 import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.jdbc.core.convert.JdbcCustomConversions;
 import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
+import org.springframework.data.relational.core.dialect.Dialect;
+import org.springframework.data.relational.core.dialect.HsqlDbDialect;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -44,7 +49,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 public class AbstractJdbcConfigurationIntegrationTests {
 
 	@Test // DATAJDBC-395
-	public void configuresInfrastructureComponents() {
+	void configuresInfrastructureComponents() {
 
 		assertApplicationContext(context -> {
 
@@ -58,7 +63,19 @@ public class AbstractJdbcConfigurationIntegrationTests {
 					.map(context::getBean) //
 					.forEach(it -> assertThat(it).isNotNull());
 
-		}, AbstractJdbcConfiguration.class, Infrastructure.class);
+		}, AbstractJdbcConfigurationUnderTest.class, Infrastructure.class);
+	}
+
+	@Test // #975
+	void registersSimpleTypesFromCustomConversions() {
+
+		assertApplicationContext(context -> {
+			JdbcMappingContext mappingContext = context.getBean(JdbcMappingContext.class);
+			assertThat( //
+					mappingContext.getPersistentEntity(AbstractJdbcConfigurationUnderTest.Blah.class) //
+			).describedAs("Blah should not be an entity, since there is a WritingConversion configured for it") //
+					.isNull();
+		}, AbstractJdbcConfigurationUnderTest.class, Infrastructure.class);
 	}
 
 	protected static void assertApplicationContext(Consumer<ConfigurableApplicationContext> verification,
@@ -83,4 +100,33 @@ public class AbstractJdbcConfigurationIntegrationTests {
 			return new NamedParameterJdbcTemplate(jdbcOperations);
 		}
 	}
+
+	static class AbstractJdbcConfigurationUnderTest extends AbstractJdbcConfiguration {
+
+		@Override
+		@Bean
+		public Dialect jdbcDialect(NamedParameterJdbcOperations operations) {
+			return HsqlDbDialect.INSTANCE;
+		}
+
+		@Override
+		public JdbcCustomConversions jdbcCustomConversions() {
+			return new JdbcCustomConversions(Collections.singletonList(Blah2BlubbConverter.INSTANCE));
+		}
+
+		@WritingConverter
+		enum Blah2BlubbConverter implements Converter<Blah, Blubb> {
+			INSTANCE;
+
+			@Override
+			public Blubb convert(Blah blah) {
+				return new Blubb();
+			}
+		}
+
+		private static class Blah {}
+
+		private static class Blubb {}
+	}
+
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 the original author or authors.
+ * Copyright 2018-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,8 @@
  */
 package org.springframework.data.relational.repository.query;
 
-import lombok.Getter;
-
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.util.Assert;
 
 /**
@@ -28,7 +27,7 @@ import org.springframework.util.Assert;
 public class SimpleRelationalEntityMetadata<T> implements RelationalEntityMetadata<T> {
 
 	private final Class<T> type;
-	private final @Getter RelationalPersistentEntity<?> tableEntity;
+	private final RelationalPersistentEntity<?> tableEntity;
 
 	/**
 	 * Creates a new {@link SimpleRelationalEntityMetadata} using the given type and {@link RelationalPersistentEntity} to
@@ -56,7 +55,11 @@ public class SimpleRelationalEntityMetadata<T> implements RelationalEntityMetada
 	/* (non-Javadoc)
 	 * @see org.springframework.data.relational.repository.query.RelationalEntityMetadata#getTableName()
 	 */
-	public String getTableName() {
+	public SqlIdentifier getTableName() {
 		return tableEntity.getTableName();
+	}
+
+	public RelationalPersistentEntity<?> getTableEntity() {
+		return this.tableEntity;
 	}
 }

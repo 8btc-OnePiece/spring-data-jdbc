@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 the original author or authors.
+ * Copyright 2018-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,14 @@ import static org.assertj.core.api.Assertions.*;
 import lombok.Data;
 import lombok.Value;
 
-import org.junit.Test;
+import java.util.Set;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import org.springframework.core.convert.converter.GenericConverter;
+import org.springframework.data.convert.ConverterBuilder;
+import org.springframework.data.convert.CustomConversions;
 import org.springframework.data.mapping.PersistentPropertyAccessor;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
@@ -35,7 +42,19 @@ import org.springframework.data.util.ClassTypeInformation;
 public class BasicRelationalConverterUnitTests {
 
 	RelationalMappingContext context = new RelationalMappingContext();
-	RelationalConverter converter = new BasicRelationalConverter(context);
+	RelationalConverter converter;
+
+	@BeforeEach
+	public void before() throws Exception {
+
+		Set<GenericConverter> converters = ConverterBuilder.writing(MyValue.class, String.class, MyValue::getFoo)
+				.andReading(MyValue::new).getConverters();
+
+		CustomConversions conversions = new CustomConversions(CustomConversions.StoreConversions.NONE, converters);
+		context.setSimpleTypeHolder(conversions.getSimpleTypeHolder());
+
+		converter = new BasicRelationalConverter(context, conversions);
+	}
 
 	@Test // DATAJDBC-235
 	@SuppressWarnings("unchecked")
@@ -73,12 +92,28 @@ public class BasicRelationalConverterUnitTests {
 	@SuppressWarnings("unchecked")
 	public void shouldCreateInstance() {
 
-		RelationalPersistentEntity<MyValue> entity = (RelationalPersistentEntity) context
-				.getRequiredPersistentEntity(MyValue.class);
+		RelationalPersistentEntity<WithConstructorCreation> entity = (RelationalPersistentEntity) context
+				.getRequiredPersistentEntity(WithConstructorCreation.class);
 
-		MyValue result = converter.createInstance(entity, it -> "bar");
+		WithConstructorCreation result = converter.createInstance(entity, it -> "bar");
 
 		assertThat(result.getFoo()).isEqualTo("bar");
+	}
+
+	@Test // DATAJDBC-516
+	public void shouldConsiderWriteConverter() {
+
+		Object result = converter.writeValue(new MyValue("hello-world"), ClassTypeInformation.from(MyValue.class));
+
+		assertThat(result).isEqualTo("hello-world");
+	}
+
+	@Test // DATAJDBC-516
+	public void shouldConsiderReadConverter() {
+
+		Object result = converter.readValue("hello-world", ClassTypeInformation.from(MyValue.class));
+
+		assertThat(result).isEqualTo(new MyValue("hello-world"));
 	}
 
 	@Data
@@ -87,8 +122,19 @@ public class BasicRelationalConverterUnitTests {
 	}
 
 	@Value
+	static class WithConstructorCreation {
+		String foo;
+	}
+
+	@Value
 	static class MyValue {
-		final String foo;
+		String foo;
+	}
+
+	@Value
+	static class MyEntityWithConvertibleProperty {
+
+		MyValue myValue;
 	}
 
 	enum MyEnum {

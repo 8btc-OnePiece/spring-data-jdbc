@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,19 @@
 package org.springframework.data.relational.core.dialect;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import org.springframework.data.relational.core.sql.From;
+import org.springframework.data.relational.core.sql.LockMode;
+import org.springframework.data.relational.core.sql.LockOptions;
 
 /**
  * Unit tests for {@link SqlServerDialect}.
  *
  * @author Mark Paluch
+ * @author Myeonghyeon Lee
  */
 public class SqlServerDialectUnitTests {
 
@@ -58,5 +64,16 @@ public class SqlServerDialectUnitTests {
 		LimitClause limit = SqlServerDialect.INSTANCE.limit();
 
 		assertThat(limit.getLimitOffset(20, 10)).isEqualTo("OFFSET 10 ROWS FETCH NEXT 20 ROWS ONLY");
+	}
+
+	@Test // DATAJDBC-498
+	public void shouldRenderLock() {
+
+		LockClause lock = SqlServerDialect.INSTANCE.lock();
+		From from = mock(From.class);
+
+		assertThat(lock.getLock(new LockOptions(LockMode.PESSIMISTIC_WRITE, from))).isEqualTo("WITH (UPDLOCK, ROWLOCK)");
+		assertThat(lock.getLock(new LockOptions(LockMode.PESSIMISTIC_READ, from))).isEqualTo("WITH (HOLDLOCK, ROWLOCK)");
+		assertThat(lock.getClausePosition()).isEqualTo(LockClause.Position.AFTER_FROM_TABLE);
 	}
 }

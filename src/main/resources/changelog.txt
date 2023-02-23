@@ -1,6 +1,387 @@
 Spring Data JDBC Changelog
 =========================
 
+Changes in version 2.2.3 (2021-07-16)
+-------------------------------------
+
+
+Changes in version 2.2.2 (2021-06-22)
+-------------------------------------
+* #979 - Fix Readme section about creating issues.
+* #975 - Fixes build failures with JDK16.
+* #972 - Fix split-package between `spring.data.jdbc` and `spring.data.relational`.
+
+
+Changes in version 2.1.10 (2021-06-22)
+--------------------------------------
+* #979 - Fix Readme section about creating issues.
+* #975 - Fixes build failures with JDK16.
+* #972 - Fix split-package between `spring.data.jdbc` and `spring.data.relational`.
+
+
+Changes in version 2.2.1 (2021-05-14)
+-------------------------------------
+
+
+Changes in version 2.1.9 (2021-05-14)
+-------------------------------------
+
+
+Changes in version 2.2.0 (2021-04-14)
+-------------------------------------
+* #961 - Upgrade dependencies.
+* #952 - Add support for `Slice` and `Page` queries using query derivation.
+* #951 - Improve documentation of entity state detection.
+* #774 - Add support for queries returning Page and Slice.
+
+
+Changes in version 2.1.8 (2021-04-14)
+-------------------------------------
+* #961 - Upgrade dependencies.
+* #951 - Improve documentation of entity state detection.
+
+
+Changes in version 2.0.9.RELEASE (2021-04-14)
+---------------------------------------------
+* #953 - Fix small typo in dialect section.
+* #947 - Docs on "query derivation" contradicts.
+* #945 - ClassCastException on primitive arrays parameters in spring-data-jdbc 2.x.x.
+
+
+Changes in version 2.1.7 (2021-03-31)
+-------------------------------------
+* #953 - Fix small typo in dialect section.
+* #947 - Docs on "query derivation" contradicts.
+* #945 - ClassCastException on primitive arrays parameters in spring-data-jdbc 2.x.x.
+
+
+Changes in version 2.2.0-RC1 (2021-03-31)
+-----------------------------------------
+* #953 - Fix small typo in dialect section.
+* #947 - Docs on "query derivation" contradicts.
+* #945 - ClassCastException on primitive arrays parameters in spring-data-jdbc 2.x.x.
+
+
+Changes in version 2.2.0-M5 (2021-03-17)
+----------------------------------------
+* #939 - Don't retrieve generated keys on INSERT if primary key is defined.
+* #938 - Move to Spring Data Commons' association abstraction.
+* #937 - JdbcCustomConversion does not reject non-Date related default converters anymore.
+* #933 - Generated keys are retrieved even if the primary key value is defined.
+* #929 - Add Query by Example support.
+
+
+Changes in version 2.1.6 (2021-03-17)
+-------------------------------------
+
+
+Changes in version 2.0.8.RELEASE (2021-03-17)
+---------------------------------------------
+
+
+Changes in version 2.2.0-M4 (2021-02-18)
+----------------------------------------
+
+
+Changes in version 2.1.5 (2021-02-18)
+-------------------------------------
+
+
+Changes in version 2.2.0-M3 (2021-02-17)
+----------------------------------------
+* DATAJDBC-620 - ResultSetExtractor can not use default row mapper.
+* #916 - Fixes Conditions.notIn() by using 'In.createNotIn()'.
+* #914 - SqlServerDialect should be case sensitive.
+* #911 - Fix documentation of callbacks.
+* #910 - Trigger BeforeConvertEvent when saving an entity.
+* #257 - Update repository after GitHub issues migration.
+
+
+Changes in version 2.1.4 (2021-02-17)
+-------------------------------------
+* DATAJDBC-620 - ResultSetExtractor can not use default row mapper.
+* #916 - Fixes Conditions.notIn() by using 'In.createNotIn()'.
+* #911 - Fix documentation of callbacks.
+* #910 - Trigger BeforeConvertEvent when saving an entity.
+
+
+Changes in version 2.0.7.RELEASE (2021-02-17)
+---------------------------------------------
+* DATAJDBC-642 - Update CI jobs with Docker Login.
+* DATAJDBC-637 - Support nanosecond precision by converting to Timestamp instead of Date.
+* #916 - Fixes Conditions.notIn() by using 'In.createNotIn()'.
+* #911 - Fix documentation of callbacks.
+* #904 - Update copyright year to 2021.
+* #257 - Update repository after GitHub issues migration.
+
+
+Changes in version 1.1.13.RELEASE (2021-02-17)
+----------------------------------------------
+* #921 - The 1.1.x build is broken.
+* #916 - Fixes Conditions.notIn() by using 'In.createNotIn()'.
+* #904 - Update copyright year to 2021.
+
+
+Changes in version 2.2.0-M2 (2021-01-13)
+----------------------------------------
+* DATAJDBC-642 - Update CI jobs with Docker Login.
+* DATAJDBC-637 - Support nanosecond precision by converting to Timestamp instead of Date.
+* #904 - Update copyright year to 2021.
+* #257 - Update repository after GitHub issues migration.
+
+
+Changes in version 2.1.3 (2021-01-13)
+-------------------------------------
+* DATAJDBC-642 - Update CI jobs with Docker Login.
+* DATAJDBC-637 - Support nanosecond precision by converting to Timestamp instead of Date.
+* #904 - Update copyright year to 2021.
+* #257 - Update repository after GitHub issues migration.
+
+
+Changes in version 2.1.2 (2020-12-09)
+-------------------------------------
+* DATAJDBC-633 - Release 2.1.2 (2020.0.2).
+
+
+Changes in version 2.2.0-M1 (2020-12-09)
+----------------------------------------
+* DATAJDBC-629 - Implement CrudRepository.delete(Iterable<ID> ids).
+* DATAJDBC-628 - Enable Maven caching for Jenkins jobs.
+* DATAJDBC-627 - Release 2.2 M1 (2021.0.0).
+* DATAJDBC-531 - Skip count query if Page Query result page size is 1.
+
+
+Changes in version 2.0.6.RELEASE (2020-12-09)
+---------------------------------------------
+* DATAJDBC-628 - Enable Maven caching for Jenkins jobs.
+* DATAJDBC-625 - Release 2.0.6 (Neumann SR6).
+
+
+Changes in version 1.1.12.RELEASE (2020-12-09)
+----------------------------------------------
+* DATAJDBC-628 - Enable Maven caching for Jenkins jobs.
+* DATAJDBC-624 - Release 1.1.12 (Moore SR12).
+
+
+Changes in version 2.1.1 (2020-11-11)
+-------------------------------------
+* DATAJDBC-628 - Enable Maven caching for Jenkins jobs.
+* DATAJDBC-626 - Release 2.1.1 (2020.0.1).
+
+
+Changes in version 2.1.0 (2020-10-28)
+-------------------------------------
+* DATAJDBC-622 - Add support for transactionManagerRef in EnableJdbcRepository.
+* DATAJDBC-616 - Migrate to JUnit 5.
+* DATAJDBC-615 - Release 2.1 GA (2020.0.0).
+* DATAJDBC-522 - Add Kotlin extensions for Criteria.
+
+
+Changes in version 2.0.5.RELEASE (2020-10-28)
+---------------------------------------------
+* DATAJDBC-614 - Query.with(Pageable) does not properly combine sorts.
+* DATAJDBC-610 - Small documentation fix.
+* DATAJDBC-601 - Release 2.0.5 (Neumann SR5).
+* DATAJDBC-596 - LessThanEqual renders ligature instead of operator in reference documentation.
+
+
+Changes in version 1.1.11.RELEASE (2020-10-28)
+----------------------------------------------
+* DATAJDBC-600 - Release 1.1.11 (Moore SR11).
+
+
+Changes in version 1.0.21.RELEASE (2020-10-28)
+----------------------------------------------
+* DATAJDBC-621 - Release 1.0.21 (Lovelace SR21).
+
+
+Changes in version 2.1.0-RC2 (2020-10-14)
+-----------------------------------------
+* DATAJDBC-614 - Query.with(Pageable) does not properly combine sorts.
+* DATAJDBC-610 - Small documentation fix.
+* DATAJDBC-606 - Adopt to changes in Spring Data Commons.
+* DATAJDBC-604 - Usage of In operator with emptyList.
+* DATAJDBC-602 - Release 2.1 RC2 (2020.0.0).
+* DATAJDBC-596 - LessThanEqual renders ligature instead of operator in reference documentation.
+* DATAJDBC-508 - Add support for @Value.
+* DATAJDBC-430 - Make row mappers to be a spring bean.
+* DATAJDBC-349 - JdbcCustomConversions not applied to primary key on lookup.
+
+
+Changes in version 2.1.0-RC1 (2020-09-16)
+-----------------------------------------
+* DATAJDBC-598 - Adapt to changed Spring Framework CollectionUtils.
+* DATAJDBC-590 - Release 2.1 RC1 (2020.0.0).
+
+
+Changes in version 2.0.4.RELEASE (2020-09-16)
+---------------------------------------------
+* DATAJDBC-591 - Release 2.0.4 (Neumann SR4).
+
+
+Changes in version 1.1.10.RELEASE (2020-09-16)
+----------------------------------------------
+* DATAJDBC-583 - Wording changes.
+* DATAJDBC-581 - Release 1.1.10 (Moore SR10).
+
+
+Changes in version 1.0.20.RELEASE (2020-09-16)
+----------------------------------------------
+* DATAJDBC-583 - Wording changes.
+* DATAJDBC-580 - Release 1.0.20 (Lovelace SR20).
+
+
+Changes in version 2.0.3.RELEASE (2020-08-12)
+---------------------------------------------
+* DATAJDBC-586 - Guard JdbcRepositoryFactoryBean against setting null values for properties.
+* DATAJDBC-583 - Wording changes.
+* DATAJDBC-582 - Release 2.0.3 (Neumann SR3).
+
+
+Changes in version 2.1.0-M2 (2020-08-12)
+----------------------------------------
+* DATAJDBC-586 - Guard JdbcRepositoryFactoryBean against setting null values for properties.
+* DATAJDBC-583 - Wording changes.
+* DATAJDBC-576 - Control test execution with missing licence via profile.
+* DATAJDBC-574 - Add MS SqlServer Integration tests to the CI pipeline.
+* DATAJDBC-573 - Fix failing Oracle integration test due to the database not being ready.
+* DATAJDBC-572 - Enable specification of a repository base class in @EnableJdbcRepositories.
+* DATAJDBC-571 - Release 2.1 M2 (2020.0.0).
+* DATAJDBC-570 - Remove AS from join alias.
+* DATAJDBC-569 - Support temporal properties with Oracle.
+* DATAJDBC-559 - DialectResolver does not resolve MySqlDialect for MariaDB.
+* DATAJDBC-256 - Run integration tests with Oracle.
+
+
+Changes in version 2.0.2.RELEASE (2020-07-22)
+---------------------------------------------
+* DATAJDBC-569 - Support temporal properties with Oracle.
+* DATAJDBC-564 - Release 2.0.2 (Neumann SR2).
+* DATAJDBC-559 - DialectResolver does not resolve MySqlDialect for MariaDB.
+
+
+Changes in version 1.1.9.RELEASE (2020-07-22)
+---------------------------------------------
+* DATAJDBC-563 - Release 1.1.9 (Moore SR9).
+
+
+Changes in version 1.0.19.RELEASE (2020-07-22)
+----------------------------------------------
+* DATAJDBC-562 - Release 1.0.19 (Lovelace SR19).
+
+
+Changes in version 2.1.0-M1 (2020-06-25)
+----------------------------------------
+* DATAJDBC-561 - Use standard Spring code of conduct.
+* DATAJDBC-560 - QueryMapper fails when using Criteria.from(…) with two or more criteria.
+* DATAJDBC-555 - Document supported databases.
+* DATAJDBC-547 - "PSQLException: ERROR: FOR UPDATE must specify unqualified relation names" when calling deleteById for an aggregate with references to other tables.
+* DATAJDBC-546 - Skip property population if entity can be constructed entirely using a full constructor.
+* DATAJDBC-545 - withId seems to be mandatory even the documentation states it should be optional.
+* DATAJDBC-544 - Delombok source files.
+* DATAJDBC-542 - Version 2.0 broke MyBatis support.
+* DATAJDBC-541 - Release 2.1 M1 (2020.0.0).
+* DATAJDBC-539 - CriteriaFactory double-wraps collection values for IN queries.
+
+
+Changes in version 2.0.1.RELEASE (2020-06-10)
+---------------------------------------------
+* DATAJDBC-560 - QueryMapper fails when using Criteria.from(…) with two or more criteria.
+* DATAJDBC-555 - Document supported databases.
+* DATAJDBC-547 - "PSQLException: ERROR: FOR UPDATE must specify unqualified relation names" when calling deleteById for an aggregate with references to other tables.
+* DATAJDBC-546 - Skip property population if entity can be constructed entirely using a full constructor.
+* DATAJDBC-545 - withId seems to be mandatory even the documentation states it should be optional.
+* DATAJDBC-542 - Version 2.0 broke MyBatis support.
+* DATAJDBC-540 - Release 2.0.1 (Neumann SR1).
+* DATAJDBC-539 - CriteriaFactory double-wraps collection values for IN queries.
+* DATAJDBC-412 - Custom value type can't be used as Id.
+
+
+Changes in version 1.1.8.RELEASE (2020-06-10)
+---------------------------------------------
+* DATAJDBC-546 - Skip property population if entity can be constructed entirely using a full constructor.
+* DATAJDBC-545 - withId seems to be mandatory even the documentation states it should be optional.
+* DATAJDBC-532 - Remove Travis CI.
+* DATAJDBC-527 - Release 1.1.8 (Moore SR8).
+
+
+Changes in version 1.0.18.RELEASE (2020-06-10)
+----------------------------------------------
+* DATAJDBC-545 - withId seems to be mandatory even the documentation states it should be optional.
+* DATAJDBC-532 - Remove Travis CI.
+* DATAJDBC-525 - Release 1.0.18 (Lovelace SR18).
+
+
+Changes in version 2.0.0.RELEASE (2020-05-12)
+---------------------------------------------
+* DATAJDBC-538 - Locks do not work for DB2.
+* DATAJDBC-534 - Derived Query support count projection.
+* DATAJDBC-532 - Remove Travis CI.
+* DATAJDBC-530 - The sorting property might be set as the property name.
+* DATAJDBC-529 - Derived query existsByToken throws exception when entity doesn't exists.
+* DATAJDBC-528 - Release 2.0 GA (Neumann).
+* DATAJDBC-493 - Deadlock occurs when competing with Jdbc Repository Update and Delete.
+* DATAJDBC-257 - Run integration tests with IBM DB2.
+
+
+Changes in version 2.0.0.RC2 (2020-04-28)
+-----------------------------------------
+* DATAJDBC-520 - Improve documentation for MappedCollection.
+* DATAJDBC-518 - Allow combination of CriteriaDefinition instances.
+* DATAJDBC-517 - Release 2.0 RC2 (Neumann).
+* DATAJDBC-507 - Change starting versions for optimistic locking to the schema used in the rest of Spring Data.
+* DATAJDBC-480 - Move off deprecated EntityInstantiators.
+* DATAJDBC-318 - Derived Queries.
+
+
+Changes in version 1.1.7.RELEASE (2020-04-28)
+---------------------------------------------
+* DATAJDBC-520 - Improve documentation for MappedCollection.
+* DATAJDBC-511 - Release 1.1.7 (Moore SR7).
+
+
+Changes in version 1.0.17.RELEASE (2020-04-28)
+----------------------------------------------
+* DATAJDBC-509 - Fix findByFirstnameLike @Query example in README.
+* DATAJDBC-506 - Fix some typos in code and documentation.
+* DATAJDBC-495 - Release 1.0.17 (Lovelace SR17).
+
+
+Changes in version 2.0.0.RC1 (2020-03-31)
+-----------------------------------------
+* DATAJDBC-516 - BasicRelationalConverter too aggressively trying to convert entities.
+* DATAJDBC-514 - Add infrastructure for query derivation in Spring Data Relational.
+* DATAJDBC-513 - Introduce Query, Criteria and Update Objects for Spring Data Relational.
+* DATAJDBC-512 - Add default dialect for H2 Database.
+* DATAJDBC-510 - Add BasicJdbcConverter constructor with IdentifierProcessing.
+* DATAJDBC-509 - Fix findByFirstnameLike @Query example in README.
+* DATAJDBC-506 - Fix some typos in code and documentation.
+* DATAJDBC-504 - Release 2.0 RC1 (Neumann).
+* DATAJDBC-487 - Default IdentifierProcessing should respect JDBC driver's setting.
+* DATAJDBC-455 - Database Dialect discovery.
+* DATAJDBC-454 - Remove ids from events where full entities are present.
+* DATAJDBC-453 - Bring DbAction and AggregateChange into a form that is somewhat future proof.
+* DATAJDBC-341 - Map NULL values in EntityRowMapper for columns not being fetched in the query.
+
+
+Changes in version 1.1.6.RELEASE (2020-03-25)
+---------------------------------------------
+* DATAJDBC-509 - Fix findByFirstnameLike @Query example in README.
+* DATAJDBC-506 - Fix some typos in code and documentation.
+* DATAJDBC-496 - Release 1.1.6 (Moore SR6).
+
+
+Changes in version 2.0.0.M4 (2020-03-11)
+----------------------------------------
+* DATAJDBC-503 - Adapt to Mockito 3.3 changes.
+* DATAJDBC-492 - AbstractJdbcConfiguration should use JdbcMappingContext instead of RelationalMappingContext.
+* DATAJDBC-491 - Quoting all database identifiers breaks queries to tables in custom schema.
+* DATAJDBC-490 - Support condition nesting.
+* DATAJDBC-488 - Deadlock occurs when competing with Jdbc Repository Update.
+* DATAJDBC-486 - Release 2.0 M4 (Neumann).
+* DATAJDBC-381 - Using backticks in column names leads to failure during INSERT with MySQL.
+
+
 Changes in version 1.1.5.RELEASE (2020-02-26)
 ---------------------------------------------
 * DATAJDBC-488 - Deadlock occurs when competing with Jdbc Repository Update.
@@ -377,6 +758,56 @@ Changes in version 1.0.0.M2 (2018-04-13)
 Changes in version 1.0.0.M1 (2018-02-06)
 ----------------------------------------
 * DATAJDBC-171 - Release 1.0 M1 (Lovelace).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

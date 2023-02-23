@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 the original author or authors.
+ * Copyright 2018-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,10 @@
  */
 package org.springframework.data.jdbc.core.mapping;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
+import static org.springframework.data.relational.core.sql.SqlIdentifier.*;
 
+import junit.framework.AssertionFailedError;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -26,13 +28,13 @@ import java.util.List;
 import java.util.UUID;
 
 import org.assertj.core.api.SoftAssertions;
-import org.junit.Test;
-
+import org.junit.jupiter.api.Test;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.mapping.PropertyHandler;
+import org.springframework.data.mapping.PersistentPropertyPath;
 import org.springframework.data.relational.core.mapping.BasicRelationalPersistentProperty;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.MappedCollection;
+import org.springframework.data.relational.core.mapping.PersistentPropertyPathExtension;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
 import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
@@ -50,83 +52,36 @@ public class BasicJdbcPersistentPropertyUnitTests {
 	RelationalMappingContext context = new JdbcMappingContext();
 	RelationalPersistentEntity<?> entity = context.getRequiredPersistentEntity(DummyEntity.class);
 
-	@Test // DATAJDBC-104
-	public void enumGetsStoredAsString() {
-
-		entity.doWithProperties((PropertyHandler<RelationalPersistentProperty>) p -> {
-			switch (p.getName()) {
-				case "someEnum":
-					assertThat(p.getColumnType()).isEqualTo(String.class);
-					break;
-				case "localDateTime":
-					assertThat(p.getColumnType()).isEqualTo(Date.class);
-					break;
-				case "zonedDateTime":
-					assertThat(p.getColumnType()).isEqualTo(String.class);
-					break;
-				default:
-			}
-		});
-	}
-
-	@Test // DATAJDBC-104, DATAJDBC-1384
-	public void testTargetTypesForPropertyType() {
-
-		SoftAssertions softly = new SoftAssertions();
-
-		RelationalPersistentEntity<?> persistentEntity = context.getRequiredPersistentEntity(DummyEntity.class);
-
-		checkTargetType(softly, persistentEntity, "someEnum", String.class);
-		checkTargetType(softly, persistentEntity, "localDateTime", Date.class);
-		checkTargetType(softly, persistentEntity, "zonedDateTime", String.class);
-		checkTargetType(softly, persistentEntity, "uuid", UUID.class);
-
-		softly.assertAll();
-	}
-
 	@Test // DATAJDBC-106
 	public void detectsAnnotatedColumnName() {
 
-		RelationalPersistentEntity<?> entity = context.getRequiredPersistentEntity(DummyEntity.class);
-
-		assertThat(entity.getRequiredPersistentProperty("name").getColumnName()).isEqualTo("dummy_name");
+		assertThat(entity.getRequiredPersistentProperty("name").getColumnName()).isEqualTo(quoted("dummy_name"));
 		assertThat(entity.getRequiredPersistentProperty("localDateTime").getColumnName())
-				.isEqualTo("dummy_last_updated_at");
+				.isEqualTo(quoted("dummy_last_updated_at"));
 	}
 
 	@Test // DATAJDBC-218
 	public void detectsAnnotatedColumnAndKeyName() {
 
-		RelationalPersistentProperty listProperty = context //
-				.getRequiredPersistentEntity(DummyEntity.class) //
-				.getRequiredPersistentProperty("someList");
+		String propertyName = "someList";
+		RelationalPersistentProperty listProperty = entity.getRequiredPersistentProperty(propertyName);
+		PersistentPropertyPathExtension path = getPersistentPropertyPath(DummyEntity.class, propertyName);
 
-		assertThat(listProperty.getReverseColumnName()).isEqualTo("dummy_column_name");
-		assertThat(listProperty.getKeyColumn()).isEqualTo("dummy_key_column_name");
-	}
-
-	@Test // DATAJDBC-221
-	public void referencesAreNotEntitiesAndGetStoredAsTheirId() {
-
-		SoftAssertions softly = new SoftAssertions();
-
-		RelationalPersistentProperty reference = entity.getRequiredPersistentProperty("reference");
-
-		softly.assertThat(reference.isEntity()).isFalse();
-		softly.assertThat(reference.getColumnType()).isEqualTo(Long.class);
-
-		softly.assertAll();
+		assertThat(listProperty.getReverseColumnName(path)).isEqualTo(quoted("dummy_column_name"));
+		assertThat(listProperty.getKeyColumn()).isEqualTo(quoted("dummy_key_column_name"));
 	}
 
 	@Test // DATAJDBC-331
-	public void detectsKeyColumnNameFromColumnAnnotation() {
+	public void detectsReverseColumnNameFromColumnAnnotation() {
 
+		String propertyName = "someList";
 		RelationalPersistentProperty listProperty = context //
 				.getRequiredPersistentEntity(WithCollections.class) //
-				.getRequiredPersistentProperty("someList");
+				.getRequiredPersistentProperty(propertyName);
+		PersistentPropertyPathExtension path = getPersistentPropertyPath(DummyEntity.class, propertyName);
 
-		assertThat(listProperty.getKeyColumn()).isEqualTo("some_key");
-		assertThat(listProperty.getReverseColumnName()).isEqualTo("some_value");
+		assertThat(listProperty.getKeyColumn()).isEqualTo(quoted("WITH_COLLECTIONS_KEY"));
+		assertThat(listProperty.getReverseColumnName(path)).isEqualTo(quoted("some_value"));
 	}
 
 	@Test // DATAJDBC-331
@@ -135,17 +90,55 @@ public class BasicJdbcPersistentPropertyUnitTests {
 		RelationalPersistentProperty listProperty = context //
 				.getRequiredPersistentEntity(WithCollections.class) //
 				.getRequiredPersistentProperty("overrideList");
+		PersistentPropertyPathExtension path = getPersistentPropertyPath(WithCollections.class, "overrideList");
 
-		assertThat(listProperty.getKeyColumn()).isEqualTo("override_key");
-		assertThat(listProperty.getReverseColumnName()).isEqualTo("override_id");
+		assertThat(listProperty.getKeyColumn()).isEqualTo(quoted("override_key"));
+		assertThat(listProperty.getReverseColumnName(path)).isEqualTo(quoted("override_id"));
 	}
 
-	private void checkTargetType(SoftAssertions softly, RelationalPersistentEntity<?> persistentEntity,
-			String propertyName, Class<?> expected) {
+	@Test // #938
+	void considersAggregateReferenceAnAssociation() {
 
-		RelationalPersistentProperty property = persistentEntity.getRequiredPersistentProperty(propertyName);
+		RelationalPersistentEntity<?> entity = context.getRequiredPersistentEntity(DummyEntity.class);
 
-		softly.assertThat(property.getColumnType()).describedAs(propertyName).isEqualTo(expected);
+		SoftAssertions.assertSoftly(softly -> {
+
+			softly.assertThat(entity.getRequiredPersistentProperty("reference").isAssociation()) //
+					.as("reference") //
+					.isTrue();
+
+			softly.assertThat(entity.getRequiredPersistentProperty("id").isAssociation()) //
+					.as("id") //
+					.isFalse();
+			softly.assertThat(entity.getRequiredPersistentProperty("someEnum").isAssociation()) //
+					.as("someEnum") //
+					.isFalse();
+			softly.assertThat(entity.getRequiredPersistentProperty("localDateTime").isAssociation()) //
+					.as("localDateTime") //
+					.isFalse();
+			softly.assertThat(entity.getRequiredPersistentProperty("zonedDateTime").isAssociation()) //
+					.as("zonedDateTime") //
+					.isFalse();
+			softly.assertThat(entity.getRequiredPersistentProperty("listField").isAssociation()) //
+					.as("listField") //
+					.isFalse();
+			softly.assertThat(entity.getRequiredPersistentProperty("uuid").isAssociation()) //
+					.as("uuid") //
+					.isFalse();
+		});
+	}
+
+	private PersistentPropertyPathExtension getPersistentPropertyPath(Class<?> type, String propertyName) {
+		PersistentPropertyPath<RelationalPersistentProperty> path = context
+				.findPersistentPropertyPaths(type, p -> p.getName().equals(propertyName)).getFirst()
+				.orElseThrow(() -> new AssertionFailedError(String.format("Couldn't find path for '%s'", propertyName)));
+
+		return new PersistentPropertyPathExtension(context, path);
+	}
+
+	@SuppressWarnings("unused")
+	private enum SomeEnum {
+		ALPHA
 	}
 
 	@Data
@@ -183,13 +176,10 @@ public class BasicJdbcPersistentPropertyUnitTests {
 	@Data
 	private static class WithCollections {
 
-		@Column(value = "some_value", keyColumn = "some_key") List<Integer> someList;
-		@Column(value = "some_value", keyColumn = "some_key") @MappedCollection(idColumn = "override_id",
-				keyColumn = "override_key") List<Integer> overrideList;
-	}
+		@Column(value = "some_value") List<Integer> someList;
 
-	@SuppressWarnings("unused")
-	private enum SomeEnum {
-		ALPHA
+		@Column(value = "some_value") //
+		@MappedCollection(idColumn = "override_id", keyColumn = "override_key") //
+		List<Integer> overrideList;
 	}
 }

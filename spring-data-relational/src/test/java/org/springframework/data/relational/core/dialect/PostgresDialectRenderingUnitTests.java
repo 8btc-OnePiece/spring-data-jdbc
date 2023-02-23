@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,10 @@ package org.springframework.data.relational.core.dialect;
 
 import static org.assertj.core.api.Assertions.*;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import org.springframework.data.relational.core.sql.LockMode;
 import org.springframework.data.relational.core.sql.Select;
 import org.springframework.data.relational.core.sql.StatementBuilder;
 import org.springframework.data.relational.core.sql.Table;
@@ -31,12 +32,13 @@ import org.springframework.data.relational.core.sql.render.SqlRenderer;
  *
  * @author Mark Paluch
  * @author Jens Schauder
+ * @author Myeonghyeon Lee
  */
 public class PostgresDialectRenderingUnitTests {
 
 	private final RenderContextFactory factory = new RenderContextFactory(PostgresDialect.INSTANCE);
 
-	@Before
+	@BeforeEach
 	public void before() throws Exception {
 		factory.setNamingStrategy(NamingStrategies.asIs());
 	}
@@ -96,5 +98,53 @@ public class PostgresDialectRenderingUnitTests {
 		String sql = SqlRenderer.create(factory.createRenderContext()).render(select);
 
 		assertThat(sql).isEqualTo("SELECT foo.* FROM foo LIMIT 10 OFFSET 20");
+	}
+
+	@Test // DATAJDBC-498
+	public void shouldRenderSelectWithLockWrite() {
+
+		Table table = Table.create("foo");
+		LockMode lockMode = LockMode.PESSIMISTIC_WRITE;
+		Select select = StatementBuilder.select(table.asterisk()).from(table).lock(lockMode).build();
+
+		String sql = SqlRenderer.create(factory.createRenderContext()).render(select);
+
+		assertThat(sql).isEqualTo("SELECT foo.* FROM foo FOR UPDATE OF foo");
+	}
+
+	@Test // DATAJDBC-498
+	public void shouldRenderSelectWithLockRead() {
+
+		Table table = Table.create("foo");
+		LockMode lockMode = LockMode.PESSIMISTIC_READ;
+		Select select = StatementBuilder.select(table.asterisk()).from(table).lock(lockMode).build();
+
+		String sql = SqlRenderer.create(factory.createRenderContext()).render(select);
+
+		assertThat(sql).isEqualTo("SELECT foo.* FROM foo FOR SHARE OF foo");
+	}
+
+	@Test // DATAJDBC-498
+	public void shouldRenderSelectWithLimitWithLockWrite() {
+
+		Table table = Table.create("foo");
+		LockMode lockMode = LockMode.PESSIMISTIC_WRITE;
+		Select select = StatementBuilder.select(table.asterisk()).from(table).limit(10).lock(lockMode).build();
+
+		String sql = SqlRenderer.create(factory.createRenderContext()).render(select);
+
+		assertThat(sql).isEqualTo("SELECT foo.* FROM foo LIMIT 10 FOR UPDATE OF foo");
+	}
+
+	@Test // DATAJDBC-498
+	public void shouldRenderSelectWithLimitWithLockRead() {
+
+		Table table = Table.create("foo");
+		LockMode lockMode = LockMode.PESSIMISTIC_READ;
+		Select select = StatementBuilder.select(table.asterisk()).from(table).limit(10).lock(lockMode).build();
+
+		String sql = SqlRenderer.create(factory.createRenderContext()).render(select);
+
+		assertThat(sql).isEqualTo("SELECT foo.* FROM foo LIMIT 10 FOR SHARE OF foo");
 	}
 }

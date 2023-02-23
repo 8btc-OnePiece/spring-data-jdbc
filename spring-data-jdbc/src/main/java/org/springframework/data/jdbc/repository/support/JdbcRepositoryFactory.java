@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,14 @@ package org.springframework.data.jdbc.repository.support;
 
 import java.util.Optional;
 
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
 import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.jdbc.repository.QueryMappingConfiguration;
-import org.springframework.data.jdbc.repository.RowMapperMap;
 import org.springframework.data.mapping.callback.EntityCallbacks;
+import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
 import org.springframework.data.repository.core.EntityInformation;
@@ -44,6 +45,7 @@ import org.springframework.util.Assert;
  * @author Greg Turnquist
  * @author Christoph Strobl
  * @author Mark Paluch
+ * @author Hebert Coelho
  */
 public class JdbcRepositoryFactory extends RepositoryFactorySupport {
 
@@ -52,6 +54,8 @@ public class JdbcRepositoryFactory extends RepositoryFactorySupport {
 	private final ApplicationEventPublisher publisher;
 	private final DataAccessStrategy accessStrategy;
 	private final NamedParameterJdbcOperations operations;
+	private final Dialect dialect;
+	@Nullable private BeanFactory beanFactory;
 
 	private QueryMappingConfiguration queryMappingConfiguration = QueryMappingConfiguration.EMPTY;
 	private EntityCallbacks entityCallbacks;
@@ -63,20 +67,24 @@ public class JdbcRepositoryFactory extends RepositoryFactorySupport {
 	 * @param dataAccessStrategy must not be {@literal null}.
 	 * @param context must not be {@literal null}.
 	 * @param converter must not be {@literal null}.
+	 * @param dialect must not be {@literal null}.
 	 * @param publisher must not be {@literal null}.
 	 * @param operations must not be {@literal null}.
 	 */
 	public JdbcRepositoryFactory(DataAccessStrategy dataAccessStrategy, RelationalMappingContext context,
-			JdbcConverter converter, ApplicationEventPublisher publisher, NamedParameterJdbcOperations operations) {
+			JdbcConverter converter, Dialect dialect, ApplicationEventPublisher publisher,
+			NamedParameterJdbcOperations operations) {
 
 		Assert.notNull(dataAccessStrategy, "DataAccessStrategy must not be null!");
 		Assert.notNull(context, "RelationalMappingContext must not be null!");
 		Assert.notNull(converter, "RelationalConverter must not be null!");
+		Assert.notNull(dialect, "Dialect must not be null!");
 		Assert.notNull(publisher, "ApplicationEventPublisher must not be null!");
 
 		this.publisher = publisher;
 		this.context = context;
 		this.converter = converter;
+		this.dialect = dialect;
 		this.accessStrategy = dataAccessStrategy;
 		this.operations = operations;
 	}
@@ -90,15 +98,6 @@ public class JdbcRepositoryFactory extends RepositoryFactorySupport {
 		Assert.notNull(queryMappingConfiguration, "QueryMappingConfiguration must not be null!");
 
 		this.queryMappingConfiguration = queryMappingConfiguration;
-	}
-
-	/**
-	 * @param rowMapperMap must not be {@literal null} consider {@link RowMapperMap#EMPTY} instead.
-	 * @deprecated use {@link #setQueryMappingConfiguration(QueryMappingConfiguration)} instead
-	 */
-	@Deprecated
-	public void setRowMapperMap(RowMapperMap rowMapperMap) {
-		setQueryMappingConfiguration(rowMapperMap);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -119,14 +118,14 @@ public class JdbcRepositoryFactory extends RepositoryFactorySupport {
 
 		JdbcAggregateTemplate template = new JdbcAggregateTemplate(publisher, context, converter, accessStrategy);
 
-		SimpleJdbcRepository<?, Object> repository = new SimpleJdbcRepository<>(template,
-				context.getRequiredPersistentEntity(repositoryInformation.getDomainType()));
-
 		if (entityCallbacks != null) {
 			template.setEntityCallbacks(entityCallbacks);
 		}
 
-		return repository;
+		RelationalPersistentEntity<?> persistentEntity = context
+				.getRequiredPersistentEntity(repositoryInformation.getDomainType());
+
+		return getTargetRepositoryViaReflection(repositoryInformation.getRepositoryBaseClass(), template, persistentEntity);
 	}
 
 	/*
@@ -146,15 +145,8 @@ public class JdbcRepositoryFactory extends RepositoryFactorySupport {
 	protected Optional<QueryLookupStrategy> getQueryLookupStrategy(@Nullable QueryLookupStrategy.Key key,
 			QueryMethodEvaluationContextProvider evaluationContextProvider) {
 
-		if (key == null || key == QueryLookupStrategy.Key.CREATE_IF_NOT_FOUND
-				|| key == QueryLookupStrategy.Key.USE_DECLARED_QUERY) {
-
-			JdbcQueryLookupStrategy strategy = new JdbcQueryLookupStrategy(publisher, entityCallbacks, context, converter,
-					queryMappingConfiguration, operations);
-			return Optional.of(strategy);
-		}
-
-		throw new IllegalArgumentException(String.format("Unsupported query lookup strategy %s!", key));
+		return Optional.of(new JdbcQueryLookupStrategy(publisher, entityCallbacks, context, converter, dialect,
+				queryMappingConfiguration, operations, beanFactory));
 	}
 
 	/**
@@ -163,5 +155,13 @@ public class JdbcRepositoryFactory extends RepositoryFactorySupport {
 	 */
 	public void setEntityCallbacks(EntityCallbacks entityCallbacks) {
 		this.entityCallbacks = entityCallbacks;
+	}
+
+	/**
+	 * @param beanFactory the {@link BeanFactory} used for looking up {@link org.springframework.jdbc.core.RowMapper} and
+	 *          {@link org.springframework.jdbc.core.ResultSetExtractor} beans.
+	 */
+	public void setBeanFactory(@Nullable BeanFactory beanFactory) {
+		this.beanFactory = beanFactory;
 	}
 }

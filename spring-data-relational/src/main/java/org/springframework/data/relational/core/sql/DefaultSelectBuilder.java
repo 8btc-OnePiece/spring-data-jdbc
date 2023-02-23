@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import org.springframework.lang.Nullable;
  *
  * @author Mark Paluch
  * @author Jens Schauder
+ * @author Myeonghyeon Lee
  * @since 1.1
  */
 class DefaultSelectBuilder implements SelectBuilder, SelectAndFrom, SelectFromAndJoin, SelectWhereAndOr {
@@ -43,6 +44,7 @@ class DefaultSelectBuilder implements SelectBuilder, SelectAndFrom, SelectFromAn
 	private List<Join> joins = new ArrayList<>();
 	private @Nullable Condition where;
 	private List<OrderByField> orderBy = new ArrayList<>();
+	private @Nullable LockMode lockMode;
 
 	/*
 	 * (non-Javadoc)
@@ -267,11 +269,23 @@ class DefaultSelectBuilder implements SelectBuilder, SelectAndFrom, SelectFromAn
 
 	/*
 	 * (non-Javadoc)
+	 * @see org.springframework.data.relational.core.sql.SelectBuilder.SelectLock#lock(org.springframework.data.relational.core.sql.LockMode)
+	 */
+	@Override
+	public SelectLock lock(LockMode lockMode) {
+
+		this.lockMode = lockMode;
+		return this;
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * @see org.springframework.data.relational.core.sql.SelectBuilder.BuildSelect#build()
 	 */
 	@Override
 	public Select build() {
-		DefaultSelect select = new DefaultSelect(distinct, selectList, from, limit, offset, joins, where, orderBy);
+
+		DefaultSelect select = new DefaultSelect(distinct, selectList, from, limit, offset, joins, where, orderBy, lockMode);
 		SelectValidator.validate(select);
 		return select;
 	}
@@ -287,7 +301,6 @@ class DefaultSelectBuilder implements SelectBuilder, SelectAndFrom, SelectFromAn
 		private @Nullable Expression from;
 		private @Nullable Expression to;
 		private @Nullable Condition condition;
-
 
 		JoinBuilder(Table table, DefaultSelectBuilder selectBuilder, JoinType joinType) {
 
@@ -341,10 +354,10 @@ class DefaultSelectBuilder implements SelectBuilder, SelectAndFrom, SelectFromAn
 			} else {
 				condition = condition.and(comparison);
 			}
+
 		}
 
 		private Join finishJoin() {
-
 			finishCondition();
 			return new Join(joinType, table, condition);
 		}
@@ -447,6 +460,16 @@ class DefaultSelectBuilder implements SelectBuilder, SelectAndFrom, SelectFromAn
 		public SelectFromAndJoin offset(long offset) {
 			selectBuilder.join(finishJoin());
 			return selectBuilder.offset(offset);
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see org.springframework.data.relational.core.sql.SelectBuilder.SelectLock#lock(org.springframework.data.relational.core.sql.LockMode)
+		 */
+		@Override
+		public SelectLock lock(LockMode lockMode) {
+			selectBuilder.join(finishJoin());
+			return selectBuilder.lock(lockMode);
 		}
 
 		/*

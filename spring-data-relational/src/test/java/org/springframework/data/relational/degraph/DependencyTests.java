@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,17 @@
 package org.springframework.data.relational.degraph;
 
 import static de.schauderhaft.degraph.check.JCheck.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.MatcherAssert.*;
 
 import de.schauderhaft.degraph.check.JCheck;
+import org.junit.jupiter.api.Test;
 import scala.runtime.AbstractFunction1;
-
-import org.junit.Test;
 
 /**
  * Test package dependencies for violations.
  *
  * @author Jens Schauder
+ * @author Mark Paluch
  */
 public class DependencyTests {
 
@@ -49,6 +49,8 @@ public class DependencyTests {
 				classpath() //
 						// include only Spring Data related classes (for example no JDK code)
 						.including("org.springframework.data.**") //
+						.excluding("org.springframework.data.relational.core.sql.**") //
+						.excluding("org.springframework.data.repository.query.parser.**") //
 						.filterClasspath(new AbstractFunction1<String, Object>() {
 							@Override
 							public Object apply(String s) { //

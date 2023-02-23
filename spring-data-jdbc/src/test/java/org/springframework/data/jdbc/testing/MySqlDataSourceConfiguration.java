@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,18 @@
  */
 package org.springframework.data.jdbc.testing;
 
-import java.sql.SQLException;
+import java.sql.Connection;
 
-import javax.annotation.PostConstruct;
-import javax.script.ScriptException;
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.jdbc.ext.ScriptUtils;
 
-import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
+import com.mysql.cj.jdbc.MysqlDataSource;
 
 /**
  * {@link DataSource} setup for MySQL. Starts a docker container with a MySql database and sets up a database name
@@ -35,16 +35,13 @@ import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
  * @author Jens Schauder
  * @author Oliver Gierke
  * @author Sedat Gokcen
+ * @author Mark Paluch
  */
 @Configuration
 @Profile("mysql")
-class MySqlDataSourceConfiguration extends DataSourceConfiguration {
+class MySqlDataSourceConfiguration extends DataSourceConfiguration implements InitializingBean {
 
-	private static final MySQLContainer MYSQL_CONTAINER = new MySQLContainer().withConfigurationOverride("");
-
-	static {
-		MYSQL_CONTAINER.start();
-	}
+	private static MySQLContainer<?> MYSQL_CONTAINER;
 
 	/*
 	 * (non-Javadoc)
@@ -53,17 +50,42 @@ class MySqlDataSourceConfiguration extends DataSourceConfiguration {
 	@Override
 	protected DataSource createDataSource() {
 
+		if (MYSQL_CONTAINER == null) {
+
+			MySQLContainer<?> container = new MySQLContainer<>("mysql:8.0.24").withUsername("test").withPassword("test")
+					.withConfigurationOverride("");
+
+			container.start();
+
+			MYSQL_CONTAINER = container;
+		}
+
 		MysqlDataSource dataSource = new MysqlDataSource();
 		dataSource.setUrl(MYSQL_CONTAINER.getJdbcUrl());
-		dataSource.setUser(MYSQL_CONTAINER.getUsername());
+		dataSource.setUser("root");
 		dataSource.setPassword(MYSQL_CONTAINER.getPassword());
 		dataSource.setDatabaseName(MYSQL_CONTAINER.getDatabaseName());
 
 		return dataSource;
 	}
 
-	@PostConstruct
-	public void initDatabase() throws SQLException, ScriptException {
-		ScriptUtils.executeSqlScript(createDataSource().getConnection(), null, "DROP DATABASE test;CREATE DATABASE test;");
+	@Override
+	public void afterPropertiesSet() throws Exception {
+
+		try (Connection connection = createDataSource().getConnection()) {
+			ScriptUtils.executeSqlScript(connection,
+					new ByteArrayResource("DROP DATABASE test;CREATE DATABASE test;".getBytes()));
+		}
+	}
+
+	private DataSource createRootDataSource() {
+
+		MysqlDataSource dataSource = new MysqlDataSource();
+		dataSource.setUrl(MYSQL_CONTAINER.getJdbcUrl());
+		dataSource.setUser("root");
+		dataSource.setPassword(MYSQL_CONTAINER.getPassword());
+		dataSource.setDatabaseName(MYSQL_CONTAINER.getDatabaseName());
+
+		return dataSource;
 	}
 }

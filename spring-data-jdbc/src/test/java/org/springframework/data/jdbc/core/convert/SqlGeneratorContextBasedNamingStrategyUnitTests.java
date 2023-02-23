@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import org.assertj.core.api.SoftAssertions;
-import org.junit.Test;
+
+import org.junit.jupiter.api.Test;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.jdbc.core.convert.SqlGenerator;
 import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
 import org.springframework.data.jdbc.core.mapping.PersistentPropertyPathTestUtils;
 import org.springframework.data.mapping.PersistentPropertyPath;
@@ -87,8 +87,11 @@ public class SqlGeneratorContextBasedNamingStrategyUnitTests {
 
 			String sql = sqlGenerator.createDeleteByPath(getPath("ref"));
 
-			assertThat(sql).isEqualTo(
-					"DELETE FROM " + user + ".referenced_entity WHERE " + user + ".referenced_entity.dummy_entity = :rootId");
+			assertThat(sql).isEqualTo( //
+					"DELETE FROM " //
+							+ user + ".referenced_entity WHERE " //
+							+ user + ".referenced_entity.dummy_entity = :rootId" //
+			);
 		});
 	}
 
@@ -211,9 +214,12 @@ public class SqlGeneratorContextBasedNamingStrategyUnitTests {
 	private SqlGenerator configureSqlGenerator(NamingStrategy namingStrategy) {
 
 		RelationalMappingContext context = new JdbcMappingContext(namingStrategy);
+		JdbcConverter converter = new BasicJdbcConverter(context, (identifier, path) -> {
+			throw new UnsupportedOperationException();
+		});
 		RelationalPersistentEntity<?> persistentEntity = context.getRequiredPersistentEntity(DummyEntity.class);
 
-		return new SqlGenerator(context, persistentEntity);
+		return new SqlGenerator(context, converter, persistentEntity, NonQuotingDialect.INSTANCE);
 	}
 
 	@SuppressWarnings("unused")

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,30 +15,33 @@
  */
 package org.springframework.data.relational.core.mapping;
 
-import lombok.EqualsAndHashCode;
+import java.util.Objects;
 
 import org.springframework.data.mapping.PersistentProperty;
 import org.springframework.data.mapping.PersistentPropertyPath;
 import org.springframework.data.mapping.context.MappingContext;
+import org.springframework.data.relational.core.sql.IdentifierProcessing;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.util.Lazy;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 
 /**
  * A wrapper around a {@link org.springframework.data.mapping.PersistentPropertyPath} for making common operations
  * available used in SQL generation and conversion
  *
  * @author Jens Schauder
+ * @author Daniil Razorenov
  * @since 1.1
  */
-@EqualsAndHashCode(exclude = { "columnAlias", "context" })
 public class PersistentPropertyPathExtension {
 
 	private final RelationalPersistentEntity<?> entity;
-	private final @Nullable PersistentPropertyPath<RelationalPersistentProperty> path;
-	private final MappingContext<RelationalPersistentEntity<?>, RelationalPersistentProperty> context;
+	private final @Nullable PersistentPropertyPath<? extends RelationalPersistentProperty> path;
+	private final MappingContext<? extends RelationalPersistentEntity<?>, ? extends RelationalPersistentProperty> context;
 
-	private final Lazy<String> columnAlias = Lazy.of(() -> prefixWithTableAlias(getColumnName()));
+	private final Lazy<SqlIdentifier> columnAlias = Lazy.of(() -> prefixWithTableAlias(getColumnName()));
 
 	/**
 	 * Creates the empty path referencing the root itself.
@@ -47,7 +50,7 @@ public class PersistentPropertyPathExtension {
 	 * @param entity Root entity of the path. Must not be {@literal null}.
 	 */
 	public PersistentPropertyPathExtension(
-			MappingContext<RelationalPersistentEntity<?>, RelationalPersistentProperty> context,
+			MappingContext<? extends RelationalPersistentEntity<?>, ? extends RelationalPersistentProperty> context,
 			RelationalPersistentEntity<?> entity) {
 
 		Assert.notNull(context, "Context must not be null.");
@@ -65,8 +68,8 @@ public class PersistentPropertyPathExtension {
 	 * @param path must not be {@literal null}.
 	 */
 	public PersistentPropertyPathExtension(
-			MappingContext<RelationalPersistentEntity<?>, RelationalPersistentProperty> context,
-			PersistentPropertyPath<RelationalPersistentProperty> path) {
+			MappingContext<? extends RelationalPersistentEntity<?>, ? extends RelationalPersistentProperty> context,
+			PersistentPropertyPath<? extends RelationalPersistentProperty> path) {
 
 		Assert.notNull(context, "Context must not be null.");
 		Assert.notNull(path, "Path must not be null.");
@@ -156,10 +159,9 @@ public class PersistentPropertyPathExtension {
 	 *
 	 * @throws IllegalStateException when called on an empty path.
 	 */
-	public String getReverseColumnName() {
+	public SqlIdentifier getReverseColumnName() {
 
 		Assert.state(path != null, "Empty paths don't have a reverse column name");
-
 		return path.getRequiredLeafProperty().getReverseColumnName(this);
 	}
 
@@ -168,7 +170,7 @@ public class PersistentPropertyPathExtension {
 	 *
 	 * @throws IllegalStateException when called on an empty path.
 	 */
-	public String getReverseColumnNameAlias() {
+	public SqlIdentifier getReverseColumnNameAlias() {
 
 		return prefixWithTableAlias(getReverseColumnName());
 	}
@@ -178,7 +180,7 @@ public class PersistentPropertyPathExtension {
 	 *
 	 * @throws IllegalStateException when called on an empty path.
 	 */
-	public String getColumnName() {
+	public SqlIdentifier getColumnName() {
 
 		Assert.state(path != null, "Path is null");
 
@@ -190,7 +192,7 @@ public class PersistentPropertyPathExtension {
 	 *
 	 * @throws IllegalStateException when called on an empty path.
 	 */
-	public String getColumnAlias() {
+	public SqlIdentifier getColumnAlias() {
 		return columnAlias.get();
 	}
 
@@ -228,7 +230,7 @@ public class PersistentPropertyPathExtension {
 	 *
 	 * @return the name of the table. Guaranteed to be not {@literal null}.
 	 */
-	public String getTableName() {
+	public SqlIdentifier getTableName() {
 		return getTableOwningAncestor().getRequiredLeafEntity().getTableName();
 	}
 
@@ -238,7 +240,7 @@ public class PersistentPropertyPathExtension {
 	 * @return a table alias, {@literal null} if the table owning path is the empty path.
 	 */
 	@Nullable
-	public String getTableAlias() {
+	public SqlIdentifier getTableAlias() {
 
 		PersistentPropertyPathExtension tableOwner = getTableOwningAncestor();
 
@@ -249,7 +251,7 @@ public class PersistentPropertyPathExtension {
 	/**
 	 * The column name of the id column of the ancestor path that represents an actual table.
 	 */
-	public String getIdColumnName() {
+	public SqlIdentifier getIdColumnName() {
 		return getTableOwningAncestor().getRequiredLeafEntity().getIdColumn();
 	}
 
@@ -257,7 +259,7 @@ public class PersistentPropertyPathExtension {
 	 * If the table owning ancestor has an id the column name of that id property is returned. Otherwise the reverse
 	 * column is returned.
 	 */
-	public String getEffectiveIdColumnName() {
+	public SqlIdentifier getEffectiveIdColumnName() {
 
 		PersistentPropertyPathExtension owner = getTableOwningAncestor();
 		return owner.path == null ? owner.getRequiredLeafEntity().getIdColumn() : owner.getReverseColumnName();
@@ -296,8 +298,8 @@ public class PersistentPropertyPathExtension {
 	 * @return May be {@literal null}.
 	 */
 	@Nullable
-	public String getQualifierColumn() {
-		return path == null ? "" : path.getRequiredLeafProperty().getKeyColumn();
+	public SqlIdentifier getQualifierColumn() {
+		return path == null ? SqlIdentifier.EMPTY : path.getRequiredLeafProperty().getKeyColumn();
 	}
 
 	/**
@@ -318,7 +320,7 @@ public class PersistentPropertyPathExtension {
 	 */
 	public PersistentPropertyPathExtension extendBy(RelationalPersistentProperty property) {
 
-		PersistentPropertyPath<RelationalPersistentProperty> newPath = path == null //
+		PersistentPropertyPath<? extends RelationalPersistentProperty> newPath = path == null //
 				? context.getPersistentPropertyPath(property.getName(), entity.getType()) //
 				: context.getPersistentPropertyPath(path.toDotPath() + "." + property.getName(), entity.getType());
 
@@ -366,7 +368,7 @@ public class PersistentPropertyPathExtension {
 	 * @return Guaranteed to be not {@literal null}.
 	 * @throws IllegalStateException if this path is empty.
 	 */
-	public PersistentPropertyPath<RelationalPersistentProperty> getRequiredPersistentPropertyPath() {
+	public PersistentPropertyPath<? extends RelationalPersistentProperty> getRequiredPersistentPropertyPath() {
 
 		Assert.state(path != null, "No path.");
 
@@ -384,24 +386,38 @@ public class PersistentPropertyPathExtension {
 		return isEntity() && !isEmbedded() ? this : getParentPath().getTableOwningAncestor();
 	}
 
-	private String assembleTableAlias() {
+	@Nullable
+	private SqlIdentifier assembleTableAlias() {
 
 		Assert.state(path != null, "Path is null");
 
 		RelationalPersistentProperty leafProperty = path.getRequiredLeafProperty();
-		String prefix = isEmbedded() ? leafProperty.getEmbeddedPrefix() : leafProperty.getName();
+		String prefix;
+		if (isEmbedded()) {
+			prefix = leafProperty.getEmbeddedPrefix();
+
+		} else {
+			prefix = leafProperty.getName();
+		}
 
 		if (path.getLength() == 1) {
 			Assert.notNull(prefix, "Prefix mus not be null.");
-			return prefix;
+			return StringUtils.hasText(prefix) ? SqlIdentifier.quoted(prefix) : null;
 		}
 
 		PersistentPropertyPathExtension parentPath = getParentPath();
-		return parentPath.isEmbedded() ? parentPath.assembleTableAlias() + prefix
-				: parentPath.assembleTableAlias() + "_" + prefix;
+		SqlIdentifier sqlIdentifier = parentPath.assembleTableAlias();
+
+		if (sqlIdentifier != null) {
+
+			return parentPath.isEmbedded() ? sqlIdentifier.transform(name -> name.concat(prefix))
+					: sqlIdentifier.transform(name -> name + "_" + prefix);
+		}
+		return SqlIdentifier.quoted(prefix);
+
 	}
 
-	private String assembleColumnName(String suffix) {
+	private SqlIdentifier assembleColumnName(SqlIdentifier suffix) {
 
 		Assert.state(path != null, "Path is null");
 
@@ -409,7 +425,7 @@ public class PersistentPropertyPathExtension {
 			return suffix;
 		}
 
-		PersistentPropertyPath<RelationalPersistentProperty> parentPath = path.getParentPath();
+		PersistentPropertyPath<? extends RelationalPersistentProperty> parentPath = path.getParentPath();
 		RelationalPersistentProperty parentLeaf = parentPath.getRequiredLeafProperty();
 
 		if (!parentLeaf.isEmbedded()) {
@@ -418,17 +434,33 @@ public class PersistentPropertyPathExtension {
 
 		String embeddedPrefix = parentLeaf.getEmbeddedPrefix();
 
-		return getParentPath().assembleColumnName(embeddedPrefix + suffix);
+		return getParentPath().assembleColumnName(suffix.transform(embeddedPrefix::concat));
 	}
 
 	private RelationalPersistentEntity<?> getRequiredLeafEntity() {
 		return path == null ? entity : context.getRequiredPersistentEntity(path.getRequiredLeafProperty().getActualType());
 	}
 
-	private String prefixWithTableAlias(String columnName) {
+	private SqlIdentifier prefixWithTableAlias(SqlIdentifier columnName) {
 
-		String tableAlias = getTableAlias();
-		return tableAlias == null ? columnName : tableAlias + "_" + columnName;
+		SqlIdentifier tableAlias = getTableAlias();
+		return tableAlias == null ? columnName
+				: columnName.transform(name -> tableAlias.getReference(IdentifierProcessing.NONE) + "_" + name);
 	}
 
+	@Override
+	public boolean equals(Object o) {
+
+		if (this == o)
+			return true;
+		if (o == null || getClass() != o.getClass())
+			return false;
+		PersistentPropertyPathExtension that = (PersistentPropertyPathExtension) o;
+		return entity.equals(that.entity) && Objects.equals(path, that.path);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(entity, path);
+	}
 }

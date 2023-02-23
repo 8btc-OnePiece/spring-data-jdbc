@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,32 +15,31 @@
  */
 package org.springframework.data.jdbc.testing;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 
-import javax.annotation.PostConstruct;
-import javax.script.ScriptException;
 import javax.sql.DataSource;
 
 import org.mariadb.jdbc.MariaDbDataSource;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.testcontainers.containers.MariaDBContainer;
-import org.testcontainers.jdbc.ext.ScriptUtils;
 
 /**
  * {@link DataSource} setup for MariaDB. Starts a Docker-container with a MariaDB database, and sets up database "test".
- * 
+ *
  * @author Christoph Preißner
+ * @author Mark Paluch
+ * @author Jens Schauder
  */
 @Configuration
 @Profile("mariadb")
-class MariaDBDataSourceConfiguration extends DataSourceConfiguration {
+class MariaDBDataSourceConfiguration extends DataSourceConfiguration implements InitializingBean {
 
-	private static final MariaDBContainer MARIADB_CONTAINER = new MariaDBContainer().withConfigurationOverride("");
-
-	static {
-		MARIADB_CONTAINER.start();
-	}
+	private static MariaDBContainer<?> MARIADB_CONTAINER;
 
 	/*
 	 * (non-Javadoc)
@@ -48,7 +47,18 @@ class MariaDBDataSourceConfiguration extends DataSourceConfiguration {
 	 */
 	@Override
 	protected DataSource createDataSource() {
+
+		if (MARIADB_CONTAINER == null) {
+
+			MariaDBContainer<?> container = new MariaDBContainer<>("mariadb:10.5").withUsername("root").withPassword("")
+					.withConfigurationOverride("");
+			container.start();
+
+			MARIADB_CONTAINER = container;
+		}
+
 		try {
+
 			MariaDbDataSource dataSource = new MariaDbDataSource();
 			dataSource.setUrl(MARIADB_CONTAINER.getJdbcUrl());
 			dataSource.setUser(MARIADB_CONTAINER.getUsername());
@@ -59,8 +69,12 @@ class MariaDBDataSourceConfiguration extends DataSourceConfiguration {
 		}
 	}
 
-	@PostConstruct
-	public void initDatabase() throws SQLException, ScriptException {
-		ScriptUtils.executeSqlScript(createDataSource().getConnection(), null, "DROP DATABASE test;CREATE DATABASE test;");
+	@Override
+	public void afterPropertiesSet() throws Exception {
+
+		try (Connection connection = createDataSource().getConnection()) {
+			ScriptUtils.executeSqlScript(connection,
+					new ByteArrayResource("DROP DATABASE test;CREATE DATABASE test;".getBytes()));
+		}
 	}
 }

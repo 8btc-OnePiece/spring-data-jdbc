@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package org.springframework.data.jdbc.mybatis;
 import java.util.Collections;
 import java.util.Map;
 
-import org.springframework.data.relational.domain.Identifier;
+import org.springframework.data.jdbc.core.convert.Identifier;
 import org.springframework.lang.Nullable;
 
 /**
@@ -35,16 +35,16 @@ public class MyBatisContext {
 	private final @Nullable Object instance;
 	private final @Nullable Identifier identifier;
 	private final @Nullable Class domainType;
-	private final Map<String, Object> additonalValues;
+	private final Map<String, Object> additionalValues;
 
-	public MyBatisContext(@Nullable Object id, @Nullable Object instance, @Nullable Class domainType,
-			Map<String, Object> additonalValues) {
+	public MyBatisContext(@Nullable Object id, @Nullable Object instance, @Nullable Class<?> domainType,
+			Map<String, Object> additionalValues) {
 
 		this.id = id;
 		this.identifier = null;
 		this.instance = instance;
 		this.domainType = domainType;
-		this.additonalValues = additonalValues;
+		this.additionalValues = additionalValues;
 	}
 
 	public MyBatisContext(Identifier identifier, @Nullable Object instance, @Nullable Class<?> domainType) {
@@ -53,7 +53,7 @@ public class MyBatisContext {
 		this.identifier = identifier;
 		this.instance = instance;
 		this.domainType = domainType;
-		this.additonalValues = Collections.emptyMap();
+		this.additionalValues = Collections.emptyMap();
 	}
 
 	/**
@@ -78,7 +78,7 @@ public class MyBatisContext {
 
 	/**
 	 * The entity to act upon. This is {@code null} for queries, since the object doesn't exist before the query.
-	 * 
+	 *
 	 * @return Might return {@code null}.
 	 */
 	@Nullable
@@ -104,7 +104,12 @@ public class MyBatisContext {
 	 */
 	@Nullable
 	public Object get(String key) {
-		return additonalValues.get(key);
-	}
 
+		Object value = null;
+		if (identifier != null) {
+			value = identifier.toMap().get(key);
+		}
+
+		return value == null ? additionalValues.get(key) : value;
+	}
 }

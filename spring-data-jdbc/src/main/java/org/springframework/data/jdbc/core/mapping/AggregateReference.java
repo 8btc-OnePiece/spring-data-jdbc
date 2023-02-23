@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 the original author or authors.
+ * Copyright 2018-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,10 @@
  */
 package org.springframework.data.jdbc.core.mapping;
 
-import lombok.EqualsAndHashCode;
-import lombok.RequiredArgsConstructor;
-import lombok.ToString;
+import java.util.Objects;
 
 import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
 
 /**
  * A reference to the aggregate root of a different aggregate.
@@ -45,20 +44,46 @@ public interface AggregateReference<T, ID> {
 	/**
 	 * An {@link AggregateReference} that only holds the id of the referenced aggregate root. Note that there is no check
 	 * that a matching aggregate for this id actually exists.
-	 * 
+	 *
 	 * @param <T>
 	 * @param <ID>
 	 */
-	@RequiredArgsConstructor
-	@EqualsAndHashCode
-	@ToString
 	class IdOnlyAggregateReference<T, ID> implements AggregateReference<T, ID> {
 
 		private final ID id;
 
+		public IdOnlyAggregateReference(ID id) {
+
+			Assert.notNull(id, "Id must not be null.");
+
+			this.id = id;
+		}
+
 		@Override
 		public ID getId() {
 			return id;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+
+			if (this == o)
+				return true;
+			if (o == null || getClass() != o.getClass())
+				return false;
+			IdOnlyAggregateReference<?, ?> that = (IdOnlyAggregateReference<?, ?>) o;
+			return id.equals(that.id);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(id);
+		}
+
+		@Override
+		public String toString() {
+
+			return "IdOnlyAggregateReference{" + "id=" + id + '}';
 		}
 	}
 }

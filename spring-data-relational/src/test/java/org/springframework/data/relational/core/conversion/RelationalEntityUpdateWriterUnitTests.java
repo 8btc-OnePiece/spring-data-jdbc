@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,13 @@ import static org.assertj.core.api.Assertions.*;
 
 import lombok.RequiredArgsConstructor;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.junit.MockitoJUnitRunner;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.conversion.AggregateChange.Kind;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 
 /**
@@ -32,7 +34,7 @@ import org.springframework.data.relational.core.mapping.RelationalMappingContext
  * @author Thomas Lang
  * @author Myeonghyeon Lee
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class RelationalEntityUpdateWriterUnitTests {
 
 	public static final long SOME_ENTITY_ID = 23L;
@@ -43,18 +45,24 @@ public class RelationalEntityUpdateWriterUnitTests {
 
 		SingleReferenceEntity entity = new SingleReferenceEntity(SOME_ENTITY_ID);
 
-		AggregateChange<RelationalEntityWriterUnitTests.SingleReferenceEntity> aggregateChange = //
-				new AggregateChange(Kind.SAVE, SingleReferenceEntity.class, entity);
+		MutableAggregateChange<SingleReferenceEntity> aggregateChange = MutableAggregateChange.forSave(entity);
 
 		converter.write(entity, aggregateChange);
 
-		assertThat(aggregateChange.getActions()) //
-				.extracting(DbAction::getClass, DbAction::getEntityType, DbActionTestSupport::extractPath, DbActionTestSupport::actualEntityType,
-						DbActionTestSupport::isWithDependsOn) //
+		assertThat(extractActions(aggregateChange)) //
+				.extracting(DbAction::getClass, DbAction::getEntityType, DbActionTestSupport::extractPath,
+						DbActionTestSupport::actualEntityType, DbActionTestSupport::isWithDependsOn) //
 				.containsExactly( //
 						tuple(DbAction.UpdateRoot.class, SingleReferenceEntity.class, "", SingleReferenceEntity.class, false), //
-						tuple(DbAction.Delete.class, Element.class, "other", null, false)	//
+						tuple(DbAction.Delete.class, Element.class, "other", null, false) //
 				);
+	}
+
+	private List<DbAction<?>> extractActions(MutableAggregateChange<?> aggregateChange) {
+
+		List<DbAction<?>> actions = new ArrayList<>();
+		aggregateChange.forEachAction(actions::add);
+		return actions;
 	}
 
 	@RequiredArgsConstructor

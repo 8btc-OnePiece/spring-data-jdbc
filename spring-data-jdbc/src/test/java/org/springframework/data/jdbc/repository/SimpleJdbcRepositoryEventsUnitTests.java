@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,21 +20,23 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import junit.framework.AssertionFailedError;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import lombok.experimental.Wither;
+import lombok.With;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 import org.assertj.core.groups.Tuple;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jdbc.core.convert.BasicJdbcConverter;
 import org.springframework.data.jdbc.core.convert.DefaultDataAccessStrategy;
 import org.springframework.data.jdbc.core.convert.DefaultJdbcTypeFactory;
@@ -45,19 +47,25 @@ import org.springframework.data.jdbc.core.convert.SqlGeneratorSource;
 import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
 import org.springframework.data.jdbc.repository.support.JdbcRepositoryFactory;
 import org.springframework.data.jdbc.repository.support.SimpleJdbcRepository;
+import org.springframework.data.relational.core.dialect.Dialect;
+import org.springframework.data.relational.core.dialect.H2Dialect;
+import org.springframework.data.relational.core.dialect.HsqlDbDialect;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.core.mapping.event.AfterDeleteEvent;
 import org.springframework.data.relational.core.mapping.event.AfterLoadEvent;
 import org.springframework.data.relational.core.mapping.event.AfterSaveEvent;
+import org.springframework.data.relational.core.mapping.event.BeforeConvertEvent;
 import org.springframework.data.relational.core.mapping.event.BeforeDeleteEvent;
 import org.springframework.data.relational.core.mapping.event.BeforeSaveEvent;
 import org.springframework.data.relational.core.mapping.event.Identifier;
 import org.springframework.data.relational.core.mapping.event.RelationalEvent;
-import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.relational.core.mapping.event.WithId;
+import org.springframework.data.repository.PagingAndSortingRepository;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.lang.Nullable;
 
 /**
  * Unit tests for application events via {@link SimpleJdbcRepository}.
@@ -65,6 +73,9 @@ import org.springframework.jdbc.support.KeyHolder;
  * @author Jens Schauder
  * @author Mark Paluch
  * @author Oliver Gierke
+ * @author Myeonghyeon Lee
+ * @author Milan Milanov
+ * @author Myeonghyeon Lee
  */
 public class SimpleJdbcRepositoryEventsUnitTests {
 
@@ -73,21 +84,23 @@ public class SimpleJdbcRepositoryEventsUnitTests {
 	DummyEntityRepository repository;
 	DefaultDataAccessStrategy dataAccessStrategy;
 
-	@Before
+	@BeforeEach
 	public void before() {
 
 		RelationalMappingContext context = new JdbcMappingContext();
 		NamedParameterJdbcOperations operations = createIdGeneratingOperations();
 		DelegatingDataAccessStrategy delegatingDataAccessStrategy = new DelegatingDataAccessStrategy();
+		Dialect dialect = HsqlDbDialect.INSTANCE;
 		JdbcConverter converter = new BasicJdbcConverter(context, delegatingDataAccessStrategy, new JdbcCustomConversions(),
-				new DefaultJdbcTypeFactory(operations.getJdbcOperations()));
-		SqlGeneratorSource generatorSource = new SqlGeneratorSource(context);
+				new DefaultJdbcTypeFactory(operations.getJdbcOperations()), dialect.getIdentifierProcessing());
+		SqlGeneratorSource generatorSource = new SqlGeneratorSource(context, converter, dialect);
 
 		this.dataAccessStrategy = spy(new DefaultDataAccessStrategy(generatorSource, context, converter, operations));
 		delegatingDataAccessStrategy.setDelegate(dataAccessStrategy);
+		doReturn(true).when(dataAccessStrategy).update(any(), any());
 
-		JdbcRepositoryFactory factory = new JdbcRepositoryFactory(dataAccessStrategy, context, converter, publisher,
-				operations);
+		JdbcRepositoryFactory factory = new JdbcRepositoryFactory(dataAccessStrategy, context, converter,
+				H2Dialect.INSTANCE, publisher, operations);
 
 		this.repository = factory.getRepository(DummyEntityRepository.class);
 	}
@@ -103,6 +116,7 @@ public class SimpleJdbcRepositoryEventsUnitTests {
 		assertThat(publisher.events) //
 				.extracting(e -> (Class) e.getClass()) //
 				.containsExactly( //
+						BeforeConvertEvent.class, //
 						BeforeSaveEvent.class, //
 						AfterSaveEvent.class //
 				);
@@ -120,8 +134,10 @@ public class SimpleJdbcRepositoryEventsUnitTests {
 		assertThat(publisher.events) //
 				.extracting(e -> (Class) e.getClass()) //
 				.containsExactly( //
+						BeforeConvertEvent.class, //
 						BeforeSaveEvent.class, //
 						AfterSaveEvent.class, //
+						BeforeConvertEvent.class, //
 						BeforeSaveEvent.class, //
 						AfterSaveEvent.class //
 				);
@@ -136,12 +152,21 @@ public class SimpleJdbcRepositoryEventsUnitTests {
 
 		assertThat(publisher.events).extracting( //
 				RelationalEvent::getClass, //
-				e -> e.getOptionalEntity().orElseGet(AssertionFailedError::new), //
-				RelationalEvent::getId //
+				this::getEntity, //
+				this::getId //
 		).containsExactly( //
 				Tuple.tuple(BeforeDeleteEvent.class, entity, Identifier.of(23L)), //
 				Tuple.tuple(AfterDeleteEvent.class, entity, Identifier.of(23L)) //
 		);
+	}
+
+	private Identifier getId(RelationalEvent e) {
+		return ((WithId) e).getId();
+	}
+
+	@Nullable
+	private Object getEntity(RelationalEvent e) {
+		return e.getEntity();
 	}
 
 	@Test // DATAJDBC-99
@@ -213,6 +238,45 @@ public class SimpleJdbcRepositoryEventsUnitTests {
 				);
 	}
 
+	@Test // DATAJDBC-101
+	@SuppressWarnings("rawtypes")
+	public void publishesEventsOnFindAllSorted() {
+
+		DummyEntity entity1 = new DummyEntity(42L);
+		DummyEntity entity2 = new DummyEntity(23L);
+
+		doReturn(asList(entity1, entity2)).when(dataAccessStrategy).findAll(any(), any(Sort.class));
+
+		repository.findAll(Sort.by("field"));
+
+		assertThat(publisher.events) //
+				.extracting(e -> (Class) e.getClass()) //
+				.containsExactly( //
+						AfterLoadEvent.class, //
+						AfterLoadEvent.class //
+				);
+	}
+
+	@Test // DATAJDBC-101
+	@SuppressWarnings("rawtypes")
+	public void publishesEventsOnFindAllPaged() {
+
+		DummyEntity entity1 = new DummyEntity(42L);
+		DummyEntity entity2 = new DummyEntity(23L);
+
+		doReturn(asList(entity1, entity2)).when(dataAccessStrategy).findAll(any(), any(Pageable.class));
+		doReturn(2L).when(dataAccessStrategy).count(any());
+
+		repository.findAll(PageRequest.of(0, 20));
+
+		assertThat(publisher.events) //
+				.extracting(e -> (Class) e.getClass()) //
+				.containsExactly( //
+						AfterLoadEvent.class, //
+						AfterLoadEvent.class //
+				);
+	}
+
 	private static NamedParameterJdbcOperations createIdGeneratingOperations() {
 
 		Answer<Integer> setIdInKeyHolder = invocation -> {
@@ -232,10 +296,10 @@ public class SimpleJdbcRepositoryEventsUnitTests {
 		return operations;
 	}
 
-	interface DummyEntityRepository extends CrudRepository<DummyEntity, Long> {}
+	interface DummyEntityRepository extends PagingAndSortingRepository<DummyEntity, Long> {}
 
 	@Value
-	@Wither
+	@With
 	@RequiredArgsConstructor
 	static class DummyEntity {
 		@Id Long id;

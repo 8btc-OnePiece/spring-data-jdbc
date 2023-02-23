@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,9 +24,8 @@ import java.io.IOException;
 import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,14 +33,18 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.data.jdbc.core.convert.BasicJdbcConverter;
+import org.springframework.data.jdbc.core.convert.JdbcConverter;
+import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 import org.springframework.data.jdbc.testing.TestConfiguration;
+import org.springframework.data.relational.core.dialect.HsqlDbDialect;
+import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -49,14 +52,13 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * @author Kazuki Shimizu
  * @author Jens Schauder
+ * @author Tyler Van Gorder
  */
 @ContextConfiguration
 @ActiveProfiles("hsql")
 @Transactional
+@ExtendWith(SpringExtension.class)
 public class MyBatisCustomizingNamespaceHsqlIntegrationTests {
-
-	@ClassRule public static final SpringClassRule classRule = new SpringClassRule();
-	@Rule public SpringMethodRule methodRule = new SpringMethodRule();
 
 	@Autowired SqlSessionFactory sqlSessionFactory;
 	@Autowired DummyEntityRepository repository;
@@ -73,6 +75,8 @@ public class MyBatisCustomizingNamespaceHsqlIntegrationTests {
 
 		assertThat(reloaded.name).isEqualTo("name " + saved.id);
 	}
+
+	interface DummyEntityRepository extends CrudRepository<DummyEntity, Long> {}
 
 	@org.springframework.context.annotation.Configuration
 	@Import(TestConfiguration.class)
@@ -109,7 +113,11 @@ public class MyBatisCustomizingNamespaceHsqlIntegrationTests {
 		@Primary
 		MyBatisDataAccessStrategy dataAccessStrategy(SqlSession sqlSession) {
 
-			MyBatisDataAccessStrategy strategy = new MyBatisDataAccessStrategy(sqlSession);
+			RelationalMappingContext context = new JdbcMappingContext();
+			JdbcConverter converter = new BasicJdbcConverter(context, (Identifier, path) -> null);
+
+			MyBatisDataAccessStrategy strategy = new MyBatisDataAccessStrategy(sqlSession,
+					HsqlDbDialect.INSTANCE.getIdentifierProcessing());
 
 			strategy.setNamespaceStrategy(new NamespaceStrategy() {
 				@Override
@@ -121,6 +129,4 @@ public class MyBatisCustomizingNamespaceHsqlIntegrationTests {
 			return strategy;
 		}
 	}
-
-	interface DummyEntityRepository extends CrudRepository<DummyEntity, Long> {}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 the original author or authors.
+ * Copyright 2018-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@ package org.springframework.data.jdbc.repository.config;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.data.jdbc.repository.QueryMappingConfiguration;
 import org.springframework.jdbc.core.RowMapper;
 
 /**
  * Unit tests for {@link DefaultQueryMappingConfiguration}.
- * 
+ *
  * @author Jens Schauder
  * @author Evgeni Dimitrov
  */

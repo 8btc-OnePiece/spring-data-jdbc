@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package org.springframework.data.relational.core.sql.render;
 
 import org.springframework.data.relational.core.sql.Column;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.relational.core.sql.Table;
 import org.springframework.data.relational.core.sql.Visitable;
 import org.springframework.lang.Nullable;
@@ -32,7 +33,7 @@ class ColumnVisitor extends TypedSubtreeVisitor<Column> {
 	private final RenderTarget target;
 	private final boolean considerTablePrefix;
 
-	private @Nullable String tableName;
+	private @Nullable SqlIdentifier tableName;
 
 	ColumnVisitor(RenderContext context, boolean considerTablePrefix, RenderTarget target) {
 		this.context = context;
@@ -47,15 +48,13 @@ class ColumnVisitor extends TypedSubtreeVisitor<Column> {
 	@Override
 	Delegation leaveMatched(Column segment) {
 
-		String column = context.getNamingStrategy().getName(segment);
-		StringBuilder builder = new StringBuilder(
-				tableName != null ? tableName.length() + column.length() : column.length());
-		if (considerTablePrefix && tableName != null) {
-			builder.append(tableName);
-		}
-		builder.append(column);
+		SqlIdentifier column = context.getNamingStrategy().getName(segment);
 
-		target.onRendered(builder);
+		CharSequence name = considerTablePrefix && tableName != null
+				? NameRenderer.render(context, SqlIdentifier.from(tableName, column))
+				: NameRenderer.render(context, segment);
+
+		target.onRendered(name);
 		return super.leaveMatched(segment);
 	}
 
@@ -67,7 +66,7 @@ class ColumnVisitor extends TypedSubtreeVisitor<Column> {
 	Delegation leaveNested(Visitable segment) {
 
 		if (segment instanceof Table) {
-			tableName = context.getNamingStrategy().getReferenceName((Table) segment) + '.';
+			tableName = context.getNamingStrategy().getReferenceName((Table) segment);
 		}
 
 		return super.leaveNested(segment);

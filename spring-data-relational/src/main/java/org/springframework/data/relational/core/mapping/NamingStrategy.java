@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package org.springframework.data.relational.core.mapping;
 
+import org.springframework.data.relational.core.sql.IdentifierProcessing;
 import org.springframework.data.util.ParsingUtils;
 import org.springframework.util.Assert;
 
@@ -24,7 +25,7 @@ import org.springframework.util.Assert;
  * <p>
  * NOTE: Can also be used as an adapter. Create a lambda or an anonymous subclass and override any settings to implement
  * a different strategy on the fly.
- * 
+ *
  * @author Greg Turnquist
  * @author Michael Simons
  * @author Kazuki Shimizu
@@ -71,6 +72,13 @@ public interface NamingStrategy {
 		return ParsingUtils.reconcatenateCamelCase(property.getName(), "_");
 	}
 
+	/**
+	 * @param type
+	 * @return
+	 * @deprecated since 2.0. The method returns a concatenated schema with table name which conflicts with escaping. Use
+	 *             rather {@link #getTableName(Class)} and {@link #getSchema()} independently
+	 */
+	@Deprecated
 	default String getQualifiedTableName(Class<?> type) {
 		return this.getSchema() + (this.getSchema().equals("") ? "" : ".") + this.getTableName(type);
 	}
@@ -85,7 +93,7 @@ public interface NamingStrategy {
 
 		Assert.notNull(property, "Property must not be null.");
 
-		return property.getOwner().getTableName();
+		return property.getOwner().getTableName().getReference(IdentifierProcessing.NONE);
 	}
 
 	default String getReverseColumnName(PersistentPropertyPathExtension path) {
@@ -96,7 +104,7 @@ public interface NamingStrategy {
 	/**
 	 * For a map valued reference A -> Map&gt;X,B&lt; this is the name of the column in the table for B holding the key of
 	 * the map.
-	 * 
+	 *
 	 * @return name of the key column. Must not be {@code null}.
 	 */
 	default String getKeyColumn(RelationalPersistentProperty property) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,14 +15,13 @@
  */
 package org.springframework.data.relational.core.sql.render;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.data.relational.core.sql.Column;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
+import org.springframework.data.relational.core.sql.Table;
+import org.springframework.util.Assert;
 
 import java.util.Locale;
 import java.util.function.Function;
-
-import org.springframework.data.relational.core.sql.Column;
-import org.springframework.data.relational.core.sql.Table;
-import org.springframework.util.Assert;
 
 /**
  * Factory for {@link RenderNamingStrategy} objects.
@@ -114,30 +113,35 @@ public abstract class NamingStrategies {
 		INSTANCE;
 	}
 
-	@RequiredArgsConstructor
 	static class DelegatingRenderNamingStrategy implements RenderNamingStrategy {
 
 		private final RenderNamingStrategy delegate;
 		private final Function<String, String> mappingFunction;
 
-		@Override
-		public String getName(Column column) {
-			return mappingFunction.apply(delegate.getName(column));
+		DelegatingRenderNamingStrategy(RenderNamingStrategy delegate, Function<String, String> mappingFunction) {
+
+			this.delegate = delegate;
+			this.mappingFunction = mappingFunction;
 		}
 
 		@Override
-		public String getReferenceName(Column column) {
-			return mappingFunction.apply(delegate.getReferenceName(column));
+		public SqlIdentifier getName(Column column) {
+			return delegate.getName(column).transform(mappingFunction::apply);
 		}
 
 		@Override
-		public String getName(Table table) {
-			return mappingFunction.apply(delegate.getName(table));
+		public SqlIdentifier getReferenceName(Column column) {
+			return delegate.getReferenceName(column).transform(mappingFunction::apply);
 		}
 
 		@Override
-		public String getReferenceName(Table table) {
-			return mappingFunction.apply(delegate.getReferenceName(table));
+		public SqlIdentifier getName(Table table) {
+			return delegate.getName(table).transform(mappingFunction::apply);
+		}
+
+		@Override
+		public SqlIdentifier getReferenceName(Table table) {
+			return delegate.getReferenceName(table).transform(mappingFunction::apply);
 		}
 	}
 }

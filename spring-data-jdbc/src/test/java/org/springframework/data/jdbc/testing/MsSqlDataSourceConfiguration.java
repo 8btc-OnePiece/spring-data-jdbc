@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,15 @@
  */
 package org.springframework.data.jdbc.testing;
 
-import com.microsoft.sqlserver.jdbc.SQLServerDataSource;
+import javax.sql.DataSource;
+
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.testcontainers.containers.MSSQLServerContainer;
 
-import javax.sql.DataSource;
+import com.microsoft.sqlserver.jdbc.SQLServerDataSource;
 
 
 /**
@@ -29,17 +32,14 @@ import javax.sql.DataSource;
  * Configuration for a MSSQL Datasource.
  *
  * @author Thomas Lang
+ * @author Mark Paluch
  * @see <a href="https://github.com/testcontainers/testcontainers-java/tree/master/modules/mssqlserver"></a>
  */
 @Configuration
 @Profile({"mssql"})
 public class MsSqlDataSourceConfiguration extends DataSourceConfiguration {
 
-    private static final MSSQLServerContainer mssqlserver = new MSSQLServerContainer();
-
-    static {
-        mssqlserver.start();
-    }
+	private static MSSQLServerContainer<?> MSSQL_CONTAINER;
 
     /*
      * (non-Javadoc)
@@ -47,10 +47,27 @@ public class MsSqlDataSourceConfiguration extends DataSourceConfiguration {
      */
     @Override
     protected DataSource createDataSource() {
+
+		if (MSSQL_CONTAINER == null) {
+
+			MSSQLServerContainer<?> container = new MSSQLServerContainer<>() //
+					.withReuse(true);
+			container.start();
+
+			MSSQL_CONTAINER = container;
+		}
+
         SQLServerDataSource sqlServerDataSource = new SQLServerDataSource();
-        sqlServerDataSource.setURL(mssqlserver.getJdbcUrl());
-        sqlServerDataSource.setUser(mssqlserver.getUsername());
-        sqlServerDataSource.setPassword(mssqlserver.getPassword());
+		sqlServerDataSource.setURL(MSSQL_CONTAINER.getJdbcUrl());
+		sqlServerDataSource.setUser(MSSQL_CONTAINER.getUsername());
+		sqlServerDataSource.setPassword(MSSQL_CONTAINER.getPassword());
+
         return sqlServerDataSource;
     }
+
+
+	@Override
+	protected void customizePopulator(ResourceDatabasePopulator populator) {
+		populator.setIgnoreFailedDrops(true);
+	}
 }

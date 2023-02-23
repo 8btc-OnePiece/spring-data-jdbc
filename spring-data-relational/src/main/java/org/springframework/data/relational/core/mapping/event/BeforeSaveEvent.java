@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,21 +18,20 @@ package org.springframework.data.relational.core.mapping.event;
 import org.springframework.data.relational.core.conversion.AggregateChange;
 
 /**
- * Gets published before an entity gets saved to the database. The contained {@link AggregateChange} is mutable and may
- * be changed in order to change the actions that get performed on the database as part of the save operation.
+ * Gets published before an entity gets saved to the database.
  *
  * @author Jens Schauder
  */
-public class BeforeSaveEvent extends RelationalEventWithEntity {
+public class BeforeSaveEvent<E> extends RelationalSaveEvent<E> {
 
-	private static final long serialVersionUID = -6996874391990315443L;
+	private static final long serialVersionUID = -4935804431519314116L;
 
 	/**
-	 * @param id of the entity to be saved.
-	 * @param instance the entity about to get saved.
-	 * @param change the {@link AggregateChange} that is going to get applied to the database.
+	 * @param instance the entity about to get saved. Must not be {@literal null}.
+	 * @param change the {@link AggregateChange} that is going to get applied to the database. Must not be
+	 *          {@literal null}.
 	 */
-	public BeforeSaveEvent(Identifier id, Object instance, AggregateChange change) {
-		super(id, instance, change);
+	public BeforeSaveEvent(E instance, AggregateChange<E> change) {
+		super(instance, change);
 	}
 }

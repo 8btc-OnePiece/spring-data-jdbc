@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,20 +15,34 @@
  */
 package org.springframework.data.relational.core.mapping.event;
 
-import java.util.Optional;
-
-import org.springframework.data.relational.core.conversion.AggregateChange;
-
 /**
- * A {@link SimpleRelationalEvent} which is guaranteed to have an entity.
+ * An event that is guaranteed to have an entity.
  *
  * @author Jens Schauder
  */
-public class RelationalEventWithEntity extends SimpleRelationalEvent implements WithEntity {
+public class RelationalEventWithEntity<E> extends AbstractRelationalEvent<E> implements WithEntity<E> {
 
 	private static final long serialVersionUID = 4891455396602090638L;
+	private final E entity;
 
-	RelationalEventWithEntity(Identifier id, Object entity, AggregateChange change) {
-		super(id, Optional.of(entity), change);
+	RelationalEventWithEntity(E entity) {
+
+		super(entity);
+
+		this.entity = entity;
+	}
+
+	/**
+	 * @return the entity to which this event refers. Guaranteed to be not {@literal null}.
+	 */
+	@Override
+	public E getEntity() {
+		return entity;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public Class<E> getType() {
+		return (Class<E>) entity.getClass();
 	}
 }

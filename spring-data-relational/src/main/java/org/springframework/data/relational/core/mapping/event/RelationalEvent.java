@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,28 +15,27 @@
  */
 package org.springframework.data.relational.core.mapping.event;
 
-import java.util.Optional;
+import org.springframework.lang.Nullable;
 
 /**
- * an event signalling JDBC processing. It offers access to an {@link Identifier} of the aggregate root affected by the
- * event.
+ * an event signalling JDBC processing.
  *
+ * @param <E> the type of the entity to which the event relates.
  * @author Oliver Gierke
+ * @author Mark Paluch
+ * @author Jens Schauder
  */
-public interface RelationalEvent {
+public interface RelationalEvent<E> {
 
 	/**
-	 * The identifier of the aggregate root, triggering this event.
-	 *
-	 * @return the source of the event as an {@link Identifier}. Guaranteed to be not {@code null}.
+	 * @return the entity to which this event refers. Might be {@literal null}.
 	 */
-	Identifier getId();
+	@Nullable
+	E getEntity();
 
 	/**
-	 * Returns the aggregate root the event was triggered for.
-	 *
-	 * @return will never be {@code null}.
+	 * @return the type of the entity to which the event relates.
+	 * @since 2.0
 	 */
-	Optional<Object> getOptionalEntity();
-
+	Class<E> getType();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 package org.springframework.data.relational.core.sql;
+
+import org.springframework.lang.Nullable;
 
 import java.util.List;
 import java.util.OptionalLong;
@@ -30,6 +32,7 @@ import java.util.OptionalLong;
  * </ol>
  *
  * @author Mark Paluch
+ * @author Myeonghyeon Lee
  * @since 1.1
  * @see StatementBuilder
  * @see SelectBuilder
@@ -45,6 +48,8 @@ public interface Select extends Segment, Visitable {
 	static SelectBuilder builder() {
 		return new DefaultSelectBuilder();
 	}
+
+	From getFrom();
 
 	/**
 	 * @return the {@link List} of {@link OrderByField ORDER BY} fields.
@@ -71,4 +76,7 @@ public interface Select extends Segment, Visitable {
 	 * @return
 	 */
 	boolean isDistinct();
+
+	@Nullable
+	LockMode getLockMode();
 }

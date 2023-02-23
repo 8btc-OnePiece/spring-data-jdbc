@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,11 @@
 package org.springframework.data.jdbc.degraph;
 
 import static de.schauderhaft.degraph.check.JCheck.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.MatcherAssert.*;
 
 import de.schauderhaft.degraph.check.JCheck;
+import org.junit.jupiter.api.Test;
 import scala.runtime.AbstractFunction1;
-
-import org.junit.Test;
 
 /**
  * Test package dependencies for violations.
@@ -37,9 +36,6 @@ public class DependencyTests {
 				classpath() //
 						.noJars() //
 						.including("org.springframework.data.jdbc.**") //
-						// the following exclusion exclude deprecated classes necessary for backward compatibility.
-						.excluding("org.springframework.data.jdbc.core.EntityRowMapper") //
-						.excluding("org.springframework.data.jdbc.core.DefaultDataAccessStrategy") //
 						.filterClasspath("*target/classes") // exclude test code
 						.printOnFailure("degraph-jdbc.graphml"),
 				JCheck.violationFree());
@@ -52,9 +48,6 @@ public class DependencyTests {
 				classpath() //
 						// include only Spring Data related classes (for example no JDK code)
 						.including("org.springframework.data.**") //
-						// the following exclusion exclude deprecated classes necessary for backward compatibility.
-						.excluding("org.springframework.data.jdbc.core.EntityRowMapper") //
-						.excluding("org.springframework.data.jdbc.core.DefaultDataAccessStrategy") //
 						.filterClasspath(new AbstractFunction1<String, Object>() {
 							@Override
 							public Object apply(String s) { //
@@ -63,8 +56,9 @@ public class DependencyTests {
 							}
 						}) // exclude test code
 						.withSlicing("sub-modules", // sub-modules are defined by any of the following pattern.
-								"org.springframework.data.jdbc.(**).*", //
-								"org.springframework.data.(**).*") //
+								"org.springframework.data.jdbc.(*).**", //
+								"org.springframework.data.relational.(*).**", //
+								"org.springframework.data.(*).**") //
 						.printTo("degraph-across-modules.graphml"), // writes a graphml to this location
 				JCheck.violationFree());
 	}

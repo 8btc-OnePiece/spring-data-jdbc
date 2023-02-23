@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,14 @@
  */
 package org.springframework.data.relational.core.dialect;
 
-import lombok.RequiredArgsConstructor;
+import java.util.List;
 
+import org.springframework.data.relational.core.sql.IdentifierProcessing;
+import org.springframework.data.relational.core.sql.IdentifierProcessing.LetterCasing;
+import org.springframework.data.relational.core.sql.IdentifierProcessing.Quoting;
+import org.springframework.data.relational.core.sql.LockOptions;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
+import org.springframework.data.relational.core.sql.Table;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
@@ -24,6 +30,8 @@ import org.springframework.util.ClassUtils;
  * An SQL dialect for Postgres.
  *
  * @author Mark Paluch
+ * @author Myeonghyeon Lee
+ * @author Jens Schauder
  * @since 1.1
  */
 public class PostgresDialect extends AbstractDialect {
@@ -32,6 +40,8 @@ public class PostgresDialect extends AbstractDialect {
 	 * Singleton instance.
 	 */
 	public static final PostgresDialect INSTANCE = new PostgresDialect();
+
+	protected PostgresDialect() {}
 
 	private static final LimitClause LIMIT_CLAUSE = new LimitClause() {
 
@@ -83,6 +93,17 @@ public class PostgresDialect extends AbstractDialect {
 		return LIMIT_CLAUSE;
 	}
 
+	private final PostgresLockClause LOCK_CLAUSE = new PostgresLockClause(this.getIdentifierProcessing());
+
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.relational.core.dialect.Dialect#lock()
+	 */
+	@Override
+	public LockClause lock() {
+		return LOCK_CLAUSE;
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * @see org.springframework.data.relational.core.dialect.Dialect#getArraySupport()
@@ -92,7 +113,60 @@ public class PostgresDialect extends AbstractDialect {
 		return ARRAY_COLUMNS;
 	}
 
-	@RequiredArgsConstructor
+	static class PostgresLockClause implements LockClause {
+
+		private final IdentifierProcessing identifierProcessing;
+
+		PostgresLockClause(IdentifierProcessing identifierProcessing) {
+			this.identifierProcessing = identifierProcessing;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see org.springframework.data.relational.core.dialect.LockClause#getLock(LockOptions)
+		 */
+		@Override
+		public String getLock(LockOptions lockOptions) {
+
+			List<Table> tables = lockOptions.getFrom().getTables();
+			if (tables.isEmpty()) {
+				return "";
+			}
+
+			// get the first table and obtain last part if the identifier is a composed one.
+			SqlIdentifier identifier = tables.get(0).getName();
+			SqlIdentifier last = identifier;
+
+			for (SqlIdentifier sqlIdentifier : identifier) {
+				last = sqlIdentifier;
+			}
+
+			// without schema
+			String tableName = last.toSql(this.identifierProcessing);
+
+			switch (lockOptions.getLockMode()) {
+
+				case PESSIMISTIC_WRITE:
+					return "FOR UPDATE OF " + tableName;
+
+				case PESSIMISTIC_READ:
+					return "FOR SHARE OF " + tableName;
+
+				default:
+					return "";
+			}
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see org.springframework.data.relational.core.dialect.LockClause#getClausePosition()
+		 */
+		@Override
+		public Position getClausePosition() {
+			return Position.AFTER_ORDER_BY;
+		}
+	};
+
 	static class PostgresArrayColumns implements ArrayColumns {
 
 		/*
@@ -115,5 +189,10 @@ public class PostgresDialect extends AbstractDialect {
 
 			return ClassUtils.resolvePrimitiveIfNecessary(userType);
 		}
+	}
+
+	@Override
+	public IdentifierProcessing getIdentifierProcessing() {
+		return IdentifierProcessing.create(Quoting.ANSI, LetterCasing.LOWER_CASE);
 	}
 }

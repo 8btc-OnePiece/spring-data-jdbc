@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.util.OptionalLong;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.data.relational.core.sql.Join.JoinType;
 
@@ -27,6 +27,7 @@ import org.springframework.data.relational.core.sql.Join.JoinType;
  * Unit tests for {@link SelectBuilder}.
  *
  * @author Mark Paluch
+ * @author Myeonghyeon Lee
  */
 public class SelectBuilderUnitTests {
 
@@ -73,7 +74,7 @@ public class SelectBuilderUnitTests {
 		Column foo = table.column("foo");
 
 		Comparison condition = foo.isEqualTo(SQL.literalOf("bar"));
-		Select select = builder.select(foo).from(table.getName()).where(condition).build();
+		Select select = builder.select(foo).from(table).where(condition).build();
 
 		CapturingVisitor visitor = new CapturingVisitor();
 		select.visit(visitor);
@@ -147,4 +148,63 @@ public class SelectBuilderUnitTests {
 		assertThat(join.getType()).isEqualTo(JoinType.JOIN);
 	}
 
+	@Test // DATAJDBC-498
+	public void selectWithLock() {
+
+		SelectBuilder builder = StatementBuilder.select();
+
+		Table table = SQL.table("mytable");
+		Column foo = table.column("foo");
+		Column bar = table.column("bar");
+		LockMode lockMode = LockMode.PESSIMISTIC_WRITE;
+
+		Select select = builder.select(foo, bar).from(table).lock(lockMode).build();
+
+		CapturingVisitor visitor = new CapturingVisitor();
+		select.visit(visitor);
+
+		assertThat(visitor.enter).containsSequence(foo, table, bar, table, new From(table), table);
+		assertThat(select.getLockMode()).isEqualTo(lockMode);
+	}
+
+	@Test // DATAJDBC-498
+	public void selectWithWhereWithLock() {
+
+		SelectBuilder builder = StatementBuilder.select();
+
+		Table table = SQL.table("mytable");
+		Column foo = table.column("foo");
+
+		Comparison condition = foo.isEqualTo(SQL.literalOf("bar"));
+		LockMode lockMode = LockMode.PESSIMISTIC_WRITE;
+
+		Select select = builder.select(foo).from(table).where(condition).lock(lockMode).build();
+
+		CapturingVisitor visitor = new CapturingVisitor();
+		select.visit(visitor);
+
+		assertThat(visitor.enter).containsSequence(foo, table, new From(table), table, new Where(condition));
+		assertThat(select.getLockMode()).isEqualTo(lockMode);
+	}
+
+	@Test // DATAJDBC-498
+	public void orderByWithLock() {
+
+		SelectBuilder builder = StatementBuilder.select();
+
+		Table table = SQL.table("mytable");
+
+		Column foo = SQL.column("foo", table).as("foo");
+
+		OrderByField orderByField = OrderByField.from(foo).asc();
+		LockMode lockMode = LockMode.PESSIMISTIC_WRITE;
+
+		Select select = builder.select(foo).from(table).orderBy(orderByField).lock(lockMode).build();
+
+		CapturingVisitor visitor = new CapturingVisitor();
+		select.visit(visitor);
+
+		assertThat(visitor.enter).containsSequence(foo, table, new From(table), table, orderByField, foo);
+		assertThat(select.getLockMode()).isEqualTo(lockMode);
+	}
 }

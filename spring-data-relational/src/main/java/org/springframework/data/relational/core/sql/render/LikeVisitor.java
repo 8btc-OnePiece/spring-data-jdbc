@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import org.springframework.lang.Nullable;
  */
 class LikeVisitor extends FilteredSubtreeVisitor {
 
+	private final Like like;
 	private final RenderContext context;
 	private final RenderTarget target;
 	private final StringBuilder part = new StringBuilder();
@@ -38,6 +39,7 @@ class LikeVisitor extends FilteredSubtreeVisitor {
 
 	LikeVisitor(Like condition, RenderContext context, RenderTarget target) {
 		super(it -> it == condition);
+		this.like = condition;
 		this.context = context;
 		this.target = target;
 	}
@@ -73,7 +75,14 @@ class LikeVisitor extends FilteredSubtreeVisitor {
 
 		if (current != null) {
 			if (part.length() != 0) {
-				part.append(" LIKE ");
+
+				part.append(' ');
+
+				if (like.isNegated()) {
+					part.append("NOT ");
+				}
+
+				part.append("LIKE ");
 			}
 
 			part.append(current.getRenderedPart());

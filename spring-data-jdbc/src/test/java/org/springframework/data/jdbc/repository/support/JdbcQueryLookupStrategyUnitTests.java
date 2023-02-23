@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 the original author or authors.
+ * Copyright 2018-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,21 +21,22 @@ import static org.mockito.Mockito.*;
 import java.lang.reflect.Method;
 import java.text.NumberFormat;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.jdbc.repository.QueryMappingConfiguration;
 import org.springframework.data.jdbc.repository.config.DefaultQueryMappingConfiguration;
 import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.mapping.callback.EntityCallbacks;
 import org.springframework.data.projection.ProjectionFactory;
+import org.springframework.data.relational.core.dialect.H2Dialect;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.repository.core.NamedQueries;
 import org.springframework.data.repository.core.RepositoryMetadata;
 import org.springframework.data.repository.query.RepositoryQuery;
+import org.springframework.data.util.ClassTypeInformation;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
@@ -49,30 +50,32 @@ import org.springframework.util.ReflectionUtils;
  * @author Mark Paluch
  * @author Maciej Walkowiak
  * @author Evgeni Dimitrov
+ * @author Mark Paluch
+ * @author Hebert Coelho
  */
-public class JdbcQueryLookupStrategyUnitTests {
+class JdbcQueryLookupStrategyUnitTests {
 
-	ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
-	EntityCallbacks callbacks = mock(EntityCallbacks.class);
-	RelationalMappingContext mappingContext = mock(RelationalMappingContext.class, RETURNS_DEEP_STUBS);
-	JdbcConverter converter = mock(JdbcConverter.class);
-	DataAccessStrategy accessStrategy = mock(DataAccessStrategy.class);
-	ProjectionFactory projectionFactory = mock(ProjectionFactory.class);
-	RepositoryMetadata metadata;
-	NamedQueries namedQueries = mock(NamedQueries.class);
-	NamedParameterJdbcOperations operations = mock(NamedParameterJdbcOperations.class);
+	private ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
+	private EntityCallbacks callbacks = mock(EntityCallbacks.class);
+	private RelationalMappingContext mappingContext = mock(RelationalMappingContext.class, RETURNS_DEEP_STUBS);
+	private JdbcConverter converter = mock(JdbcConverter.class);
+	private ProjectionFactory projectionFactory = mock(ProjectionFactory.class);
+	private RepositoryMetadata metadata;
+	private NamedQueries namedQueries = mock(NamedQueries.class);
+	private NamedParameterJdbcOperations operations = mock(NamedParameterJdbcOperations.class);
 
-	@Before
-	public void setup() {
+	@BeforeEach
+	void setup() {
 
 		this.metadata = mock(RepositoryMetadata.class);
 
 		doReturn(NumberFormat.class).when(metadata).getReturnedDomainClass(any(Method.class));
+		doReturn(ClassTypeInformation.from(NumberFormat.class)).when(metadata).getReturnType(any(Method.class));
 	}
 
 	@Test // DATAJDBC-166
 	@SuppressWarnings("unchecked")
-	public void typeBasedRowMapperGetsUsedForQuery() {
+	void typeBasedRowMapperGetsUsedForQuery() {
 
 		RowMapper<? extends NumberFormat> numberFormatMapper = mock(RowMapper.class);
 		QueryMappingConfiguration mappingConfiguration = new DefaultQueryMappingConfiguration()
@@ -82,13 +85,27 @@ public class JdbcQueryLookupStrategyUnitTests {
 
 		repositoryQuery.execute(new Object[] {});
 
-		verify(operations).queryForObject(anyString(), any(SqlParameterSource.class), eq(numberFormatMapper));
+		verify(operations).queryForObject(anyString(), any(SqlParameterSource.class), any(RowMapper.class));
+	}
+
+	@Test // GH-1061
+	void prefersDeclaredQuery() {
+
+		RowMapper<? extends NumberFormat> numberFormatMapper = mock(RowMapper.class);
+		QueryMappingConfiguration mappingConfiguration = new DefaultQueryMappingConfiguration()
+				.registerRowMapper(NumberFormat.class, numberFormatMapper);
+
+		RepositoryQuery repositoryQuery = getRepositoryQuery("annotatedQueryWithQueryAndQueryName", mappingConfiguration);
+
+		repositoryQuery.execute(new Object[] {});
+
+		verify(operations).queryForObject(eq("some SQL"), any(SqlParameterSource.class), any(RowMapper.class));
 	}
 
 	private RepositoryQuery getRepositoryQuery(String name, QueryMappingConfiguration mappingConfiguration) {
 
-		JdbcQueryLookupStrategy queryLookupStrategy = new JdbcQueryLookupStrategy(publisher, callbacks, mappingContext, converter,
-				mappingConfiguration, operations);
+		JdbcQueryLookupStrategy queryLookupStrategy = new JdbcQueryLookupStrategy(publisher, callbacks, mappingContext,
+				converter, H2Dialect.INSTANCE, mappingConfiguration, operations, null);
 
 		Method method = ReflectionUtils.findMethod(MyRepository.class, name);
 		return queryLookupStrategy.resolveQuery(method, metadata, projectionFactory, namedQueries);
@@ -99,5 +116,8 @@ public class JdbcQueryLookupStrategyUnitTests {
 		// NumberFormat is just used as an arbitrary non simple type.
 		@Query("some SQL")
 		NumberFormat returningNumberFormat();
+
+		@Query(value = "some SQL", name = "query-name")
+		void annotatedQueryWithQueryAndQueryName();
 	}
 }

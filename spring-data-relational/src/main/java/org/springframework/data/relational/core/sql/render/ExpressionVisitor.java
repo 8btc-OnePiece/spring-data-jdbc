@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ import org.springframework.data.relational.core.sql.BindMarker;
 import org.springframework.data.relational.core.sql.Column;
 import org.springframework.data.relational.core.sql.Condition;
 import org.springframework.data.relational.core.sql.Expression;
-import org.springframework.data.relational.core.sql.Literal;
 import org.springframework.data.relational.core.sql.Named;
+import org.springframework.data.relational.core.sql.SimpleFunction;
 import org.springframework.data.relational.core.sql.SubselectExpression;
 import org.springframework.data.relational.core.sql.Visitable;
 import org.springframework.lang.Nullable;
@@ -59,20 +59,26 @@ class ExpressionVisitor extends TypedSubtreeVisitor<Expression> implements PartR
 			return Delegation.delegateTo(visitor);
 		}
 
+		if (segment instanceof SimpleFunction) {
+
+			SimpleFunctionVisitor visitor = new SimpleFunctionVisitor(context);
+			partRenderer = visitor;
+			return Delegation.delegateTo(visitor);
+		}
+
 		if (segment instanceof Column) {
 
-			RenderNamingStrategy namingStrategy = context.getNamingStrategy();
 			Column column = (Column) segment;
 
-			value = namingStrategy.getReferenceName(column.getTable()) + "." + namingStrategy.getReferenceName(column);
+			value = NameRenderer.fullyQualifiedReference(context, column);
 		} else if (segment instanceof BindMarker) {
 
 			if (segment instanceof Named) {
-				value = ((Named) segment).getName();
+				value = NameRenderer.render(context, (Named) segment);
 			} else {
 				value = segment.toString();
 			}
-		} else if (segment instanceof Literal) {
+		} else { // works for Literal and SimpleExpression and possibly more
 			value = segment.toString();
 		}
 

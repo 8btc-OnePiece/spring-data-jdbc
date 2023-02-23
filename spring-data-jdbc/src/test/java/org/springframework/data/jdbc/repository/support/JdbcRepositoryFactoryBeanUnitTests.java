@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,12 +20,14 @@ import static org.mockito.Mockito.*;
 
 import java.util.function.Supplier;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Answers;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.ListableBeanFactory;
@@ -37,6 +39,7 @@ import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
 import org.springframework.data.jdbc.core.convert.DefaultDataAccessStrategy;
 import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
 import org.springframework.data.jdbc.repository.QueryMappingConfiguration;
+import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
@@ -52,7 +55,8 @@ import org.springframework.test.util.ReflectionTestUtils;
  * @author Mark Paluch
  * @author Evgeni Dimitrov
  */
-@RunWith(MockitoJUnitRunner.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+@ExtendWith(MockitoExtension.class)
 public class JdbcRepositoryFactoryBeanUnitTests {
 
 	JdbcRepositoryFactoryBean<DummyEntityRepository, DummyEntity, Long> factoryBean;
@@ -60,10 +64,11 @@ public class JdbcRepositoryFactoryBeanUnitTests {
 	@Mock DataAccessStrategy dataAccessStrategy;
 	@Mock ApplicationEventPublisher publisher;
 	@Mock(answer = Answers.RETURNS_DEEP_STUBS) ListableBeanFactory beanFactory;
+	@Mock Dialect dialect;
 
 	RelationalMappingContext mappingContext;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 
 		this.mappingContext = new JdbcMappingContext();
@@ -75,10 +80,11 @@ public class JdbcRepositoryFactoryBeanUnitTests {
 
 		ObjectProvider<DataAccessStrategy> provider = mock(ObjectProvider.class);
 		when(beanFactory.getBeanProvider(DataAccessStrategy.class)).thenReturn(provider);
-		when(provider.getIfAvailable(any())).then((Answer) invocation -> ((Supplier) invocation.getArgument(0)).get());
+		when(provider.getIfAvailable(any()))
+				.then((Answer<?>) invocation -> ((Supplier<?>) invocation.getArgument(0)).get());
 	}
 
-	@Test
+	@Test // DATAJDBC-151
 	public void setsUpBasicInstanceCorrectly() {
 
 		factoryBean.setDataAccessStrategy(dataAccessStrategy);
@@ -86,24 +92,23 @@ public class JdbcRepositoryFactoryBeanUnitTests {
 		factoryBean.setConverter(new BasicJdbcConverter(mappingContext, dataAccessStrategy));
 		factoryBean.setApplicationEventPublisher(publisher);
 		factoryBean.setBeanFactory(beanFactory);
+		factoryBean.setDialect(dialect);
 		factoryBean.afterPropertiesSet();
 
 		assertThat(factoryBean.getObject()).isNotNull();
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test // DATAJDBC-151
 	public void requiresListableBeanFactory() {
 
-		factoryBean.setBeanFactory(mock(BeanFactory.class));
+		assertThatExceptionOfType(IllegalArgumentException.class)
+				.isThrownBy(() -> factoryBean.setBeanFactory(mock(BeanFactory.class)));
 	}
 
-	@Test(expected = IllegalStateException.class) // DATAJDBC-155
-	public void afterPropertiesThowsExceptionWhenNoMappingContextSet() {
+	@Test // DATAJDBC-155
+	public void afterPropertiesThrowsExceptionWhenNoMappingContextSet() {
 
-		factoryBean.setMappingContext(null);
-		factoryBean.setApplicationEventPublisher(publisher);
-		factoryBean.setBeanFactory(beanFactory);
-		factoryBean.afterPropertiesSet();
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> factoryBean.setMappingContext(null));
 	}
 
 	@Test // DATAJDBC-155
@@ -113,6 +118,7 @@ public class JdbcRepositoryFactoryBeanUnitTests {
 		factoryBean.setConverter(new BasicJdbcConverter(mappingContext, dataAccessStrategy));
 		factoryBean.setApplicationEventPublisher(publisher);
 		factoryBean.setBeanFactory(beanFactory);
+		factoryBean.setDialect(dialect);
 		factoryBean.afterPropertiesSet();
 
 		assertThat(factoryBean.getObject()).isNotNull();

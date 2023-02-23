@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 package org.springframework.data.relational.core.mapping.event;
 
 import org.springframework.data.mapping.callback.EntityCallback;
-import org.springframework.data.relational.core.conversion.AggregateChange;
+import org.springframework.data.relational.core.conversion.MutableAggregateChange;
 
 /**
  * An {@link EntityCallback} that gets invoked before an entity is deleted. This callback gets only invoked if the
@@ -24,6 +24,7 @@ import org.springframework.data.relational.core.conversion.AggregateChange;
  * or without any parameter don't invoke this callback.
  *
  * @author Jens Schauder
+ * @author Mark Paluch
  * @since 1.1
  */
 @FunctionalInterface
@@ -31,13 +32,13 @@ public interface BeforeDeleteCallback<T> extends EntityCallback<T> {
 
 	/**
 	 * Entity callback method invoked before an aggregate root is deleted. Can return either the same or a modified
-	 * instance of the aggregate and can modify {@link AggregateChange} contents. This method is called after converting
-	 * the {@code aggregate} to {@link AggregateChange}. Changes to the aggregate are not taken into account for deleting.
-	 * Only transient fields of the entity should be changed in this callback.
+	 * instance of the aggregate and can modify {@link MutableAggregateChange} contents. This method is called after
+	 * converting the {@code aggregate} to {@link MutableAggregateChange}. Changes to the aggregate are not taken into
+	 * account for deleting. Only transient fields of the entity should be changed in this callback.
 	 *
 	 * @param aggregate the aggregate.
-	 * @param aggregateChange the associated {@link AggregateChange}.
+	 * @param aggregateChange the associated {@link DefaultAggregateChange}.
 	 * @return the aggregate to be deleted.
 	 */
-	T onBeforeDelete(T aggregate, AggregateChange<T> aggregateChange);
+	T onBeforeDelete(T aggregate, MutableAggregateChange<T> aggregateChange);
 }

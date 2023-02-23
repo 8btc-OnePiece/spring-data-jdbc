@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,6 @@
  */
 package org.springframework.data.relational.core.mapping;
 
-import java.lang.reflect.Array;
-import java.time.ZonedDateTime;
-import java.time.temporal.Temporal;
-import java.util.Date;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -30,11 +24,10 @@ import org.springframework.data.mapping.model.AnnotationBasedPersistentProperty;
 import org.springframework.data.mapping.model.Property;
 import org.springframework.data.mapping.model.SimpleTypeHolder;
 import org.springframework.data.relational.core.mapping.Embedded.OnEmpty;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.util.Lazy;
 import org.springframework.data.util.Optionals;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
-import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
 /**
@@ -48,39 +41,46 @@ import org.springframework.util.StringUtils;
 public class BasicRelationalPersistentProperty extends AnnotationBasedPersistentProperty<RelationalPersistentProperty>
 		implements RelationalPersistentProperty {
 
-	private static final Map<Class<?>, Class<?>> javaToDbType = new LinkedHashMap<>();
-
-	static {
-
-		javaToDbType.put(Enum.class, String.class);
-		javaToDbType.put(ZonedDateTime.class, String.class);
-		javaToDbType.put(Temporal.class, Date.class);
-	}
-
-	private final RelationalMappingContext context;
-	private final Lazy<String> columnName;
-	private final Lazy<Optional<String>> collectionIdColumnName;
-	private final Lazy<String> collectionKeyColumnName;
+	private final Lazy<SqlIdentifier> columnName;
+	private final Lazy<Optional<SqlIdentifier>> collectionIdColumnName;
+	private final Lazy<SqlIdentifier> collectionKeyColumnName;
 	private final Lazy<Boolean> isEmbedded;
 	private final Lazy<String> embeddedPrefix;
-	private final Lazy<Class<?>> columnType = Lazy.of(this::doGetColumnType);
+	private final NamingStrategy namingStrategy;
+	private boolean forceQuote = true;
 
 	/**
-	 * Creates a new {@link AnnotationBasedPersistentProperty}.
+	 * Creates a new {@link BasicRelationalPersistentProperty}.
 	 *
 	 * @param property must not be {@literal null}.
 	 * @param owner must not be {@literal null}.
 	 * @param simpleTypeHolder must not be {@literal null}.
 	 * @param context must not be {@literal null}
+	 * @since 2.0, use
+	 *        {@link #BasicRelationalPersistentProperty(Property, PersistentEntity, SimpleTypeHolder, NamingStrategy)}.
 	 */
+	@Deprecated
 	public BasicRelationalPersistentProperty(Property property, PersistentEntity<?, RelationalPersistentProperty> owner,
 			SimpleTypeHolder simpleTypeHolder, RelationalMappingContext context) {
+		this(property, owner, simpleTypeHolder, context.getNamingStrategy());
+	}
+
+	/**
+	 * Creates a new {@link BasicRelationalPersistentProperty}.
+	 *
+	 * @param property must not be {@literal null}.
+	 * @param owner must not be {@literal null}.
+	 * @param simpleTypeHolder must not be {@literal null}.
+	 * @param namingStrategy must not be {@literal null}
+	 * @since 2.0
+	 */
+	public BasicRelationalPersistentProperty(Property property, PersistentEntity<?, RelationalPersistentProperty> owner,
+			SimpleTypeHolder simpleTypeHolder, NamingStrategy namingStrategy) {
 
 		super(property, owner, simpleTypeHolder);
+		this.namingStrategy = namingStrategy;
 
-		Assert.notNull(context, "context must not be null.");
-
-		this.context = context;
+		Assert.notNull(namingStrategy, "NamingStrategy must not be null.");
 
 		this.isEmbedded = Lazy.of(() -> Optional.ofNullable(findAnnotation(Embedded.class)).isPresent());
 
@@ -91,17 +91,31 @@ public class BasicRelationalPersistentProperty extends AnnotationBasedPersistent
 		this.columnName = Lazy.of(() -> Optional.ofNullable(findAnnotation(Column.class)) //
 				.map(Column::value) //
 				.filter(StringUtils::hasText) //
-				.orElseGet(() -> context.getNamingStrategy().getColumnName(this)));
+				.map(this::createSqlIdentifier) //
+				.orElseGet(() -> createDerivedSqlIdentifier(namingStrategy.getColumnName(this))));
 
 		this.collectionIdColumnName = Lazy.of(() -> Optionals
-				.toStream(Optional.ofNullable(findAnnotation(MappedCollection.class)).map(MappedCollection::idColumn),
-						Optional.ofNullable(findAnnotation(Column.class)).map(Column::value)) //
-				.filter(StringUtils::hasText).findFirst());
+				.toStream(Optional.ofNullable(findAnnotation(MappedCollection.class)) //
+						.map(MappedCollection::idColumn), //
+						Optional.ofNullable(findAnnotation(Column.class)) //
+								.map(Column::value)) //
+				.filter(StringUtils::hasText) //
+				.findFirst() //
+				.map(this::createSqlIdentifier)); //
 
-		this.collectionKeyColumnName = Lazy.of(() -> Optionals
-				.toStream(Optional.ofNullable(findAnnotation(MappedCollection.class)).map(MappedCollection::keyColumn),
-						Optional.ofNullable(findAnnotation(Column.class)).map(Column::keyColumn)) //
-				.filter(StringUtils::hasText).findFirst().orElseGet(() -> context.getNamingStrategy().getKeyColumn(this)));
+		this.collectionKeyColumnName = Lazy.of(() -> Optionals //
+				.toStream(Optional.ofNullable(findAnnotation(MappedCollection.class)).map(MappedCollection::keyColumn)) //
+				.filter(StringUtils::hasText).findFirst() //
+				.map(this::createSqlIdentifier) //
+				.orElseGet(() -> createDerivedSqlIdentifier(namingStrategy.getKeyColumn(this))));
+	}
+
+	private SqlIdentifier createSqlIdentifier(String name) {
+		return isForceQuote() ? SqlIdentifier.quoted(name) : SqlIdentifier.unquoted(name);
+	}
+
+	private SqlIdentifier createDerivedSqlIdentifier(String name) {
+		return new DerivedSqlIdentifier(name, isForceQuote());
 	}
 
 	/*
@@ -110,12 +124,20 @@ public class BasicRelationalPersistentProperty extends AnnotationBasedPersistent
 	 */
 	@Override
 	protected Association<RelationalPersistentProperty> createAssociation() {
-		throw new UnsupportedOperationException();
+		return new Association<>(this, null);
+	}
+
+	public boolean isForceQuote() {
+		return forceQuote;
+	}
+
+	public void setForceQuote(boolean forceQuote) {
+		this.forceQuote = forceQuote;
 	}
 
 	@Override
 	public boolean isEntity() {
-		return super.isEntity() && !isReference();
+		return super.isEntity() && !isAssociation();
 	}
 
 	@Override
@@ -125,102 +147,90 @@ public class BasicRelationalPersistentProperty extends AnnotationBasedPersistent
 
 	/*
 	 * (non-Javadoc)
-	 * @see org.springframework.data.jdbc.core.mapping.model.JdbcPersistentProperty#getColumnName()
+	 * @see org.springframework.data.relational.core.mapping.model.RelationalPersistentProperty#getColumnName()
 	 */
 	@Override
-	public String getColumnName() {
+	public SqlIdentifier getColumnName() {
 		return columnName.get();
 	}
 
-	/**
-	 * The type to be used to store this property in the database.
-	 *
-	 * @return a {@link Class} that is suitable for usage with JDBC drivers
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.mapping.model.AbstractPersistentProperty#getOwner()
 	 */
-	@Override
-	public Class<?> getColumnType() {
-		return columnType.get();
-	}
-
-	private Class<?> doGetColumnType() {
-
-		if (isReference()) {
-			return columnTypeForReference();
-		}
-
-		Class columnType = columnTypeIfEntity(getActualType());
-
-		if (columnType != null) {
-			return columnType;
-		}
-
-		Class componentColumnType = columnTypeForNonEntity(getActualType());
-
-		while (componentColumnType.isArray()) {
-			componentColumnType = componentColumnType.getComponentType();
-		}
-
-		if (isCollectionLike() && !isEntity()) {
-			return Array.newInstance(componentColumnType, 0).getClass();
-		}
-
-		return componentColumnType;
-	}
-
-	@Override
-	public int getSqlType() {
-		return -1;
-	}
-
 	@Override
 	public RelationalPersistentEntity<?> getOwner() {
 		return (RelationalPersistentEntity<?>) super.getOwner();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.relational.core.mapping.RelationalPersistentProperty#getReverseColumnName(org.springframework.data.relational.core.mapping.PersistentPropertyPathExtension)
+	 */
 	@Override
-	public String getReverseColumnName() {
-		return collectionIdColumnName.get().orElseGet(() -> context.getNamingStrategy().getReverseColumnName(this));
+	public SqlIdentifier getReverseColumnName(PersistentPropertyPathExtension path) {
+
+		return collectionIdColumnName.get()
+				.orElseGet(() -> createDerivedSqlIdentifier(this.namingStrategy.getReverseColumnName(path)));
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.relational.core.mapping.RelationalPersistentProperty#getKeyColumn()
+	 */
 	@Override
-	public String getReverseColumnName(PersistentPropertyPathExtension path) {
-
-		return collectionIdColumnName.get().orElseGet(() -> context.getNamingStrategy().getReverseColumnName(path));
-	}
-
-	@Override
-	public String getKeyColumn() {
+	public SqlIdentifier getKeyColumn() {
 		return isQualified() ? collectionKeyColumnName.get() : null;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.relational.core.mapping.RelationalPersistentProperty#isQualified()
+	 */
 	@Override
 	public boolean isQualified() {
 		return isMap() || isListLike();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.relational.core.mapping.RelationalPersistentProperty#getQualifierColumnType()
+	 */
 	@Override
 	public Class<?> getQualifierColumnType() {
 
 		Assert.isTrue(isQualified(), "The qualifier column type is only defined for properties that are qualified");
 
 		if (isMap()) {
-			return getTypeInformation().getComponentType().getType();
+			return getTypeInformation().getRequiredComponentType().getType();
 		}
 
 		// for lists and arrays
 		return Integer.class;
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.relational.core.mapping.RelationalPersistentProperty#isOrdered()
+	 */
 	@Override
 	public boolean isOrdered() {
 		return isListLike();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.relational.core.mapping.RelationalPersistentProperty#isEmbedded()
+	 */
 	@Override
 	public boolean isEmbedded() {
 		return isEmbedded.get();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.relational.core.mapping.RelationalPersistentProperty#getEmbeddedPrefix()
+	 */
 	@Override
 	public String getEmbeddedPrefix() {
 		return isEmbedded() ? embeddedPrefix.get() : null;
@@ -240,40 +250,6 @@ public class BasicRelationalPersistentProperty extends AnnotationBasedPersistent
 
 	private boolean isListLike() {
 		return isCollectionLike() && !Set.class.isAssignableFrom(this.getType());
-	}
-
-	@Nullable
-	private Class columnTypeIfEntity(Class type) {
-
-		RelationalPersistentEntity<?> persistentEntity = context.getPersistentEntity(type);
-
-		if (persistentEntity == null) {
-			return null;
-		}
-
-		RelationalPersistentProperty idProperty = persistentEntity.getIdProperty();
-
-		if (idProperty == null) {
-			return null;
-		}
-		return idProperty.getColumnType();
-	}
-
-	private Class columnTypeForNonEntity(Class type) {
-
-		return javaToDbType.entrySet().stream() //
-				.filter(e -> e.getKey().isAssignableFrom(type)) //
-				.map(e -> (Class) e.getValue()) //
-				.findFirst() //
-				.orElseGet(() -> ClassUtils.resolvePrimitiveIfNecessary(type));
-	}
-
-	private Class columnTypeForReference() {
-
-		Class<?> componentType = getTypeInformation().getRequiredComponentType().getType();
-		RelationalPersistentEntity<?> referencedEntity = context.getRequiredPersistentEntity(componentType);
-
-		return referencedEntity.getRequiredIdProperty().getColumnType();
 	}
 
 }

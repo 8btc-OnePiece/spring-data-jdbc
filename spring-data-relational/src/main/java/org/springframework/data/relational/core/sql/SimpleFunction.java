@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package org.springframework.data.relational.core.sql;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.springframework.util.Assert;
@@ -64,6 +65,20 @@ public class SimpleFunction extends AbstractSegment implements Expression {
 
 		Assert.hasText(alias, "Alias must not be null or empty");
 
+		return new AliasedFunction(functionName, expressions, SqlIdentifier.unquoted(alias));
+	}
+
+	/**
+	 * Expose this function result under a column {@code alias}.
+	 *
+	 * @param alias column alias name, must not {@literal null}.
+	 * @return the aliased {@link SimpleFunction}.
+	 * @since 2.0
+	 */
+	public SimpleFunction as(SqlIdentifier alias) {
+
+		Assert.notNull(alias, "Alias must not be null");
+
 		return new AliasedFunction(functionName, expressions, alias);
 	}
 
@@ -72,6 +87,14 @@ public class SimpleFunction extends AbstractSegment implements Expression {
 	 */
 	public String getFunctionName() {
 		return functionName;
+	}
+
+	/**
+	 * @return the function arguments.
+	 * @since 2.0
+	 */
+	public List<Expression> getExpressions() {
+		return Collections.unmodifiableList(expressions);
 	}
 
 	/*
@@ -88,9 +111,9 @@ public class SimpleFunction extends AbstractSegment implements Expression {
 	 */
 	static class AliasedFunction extends SimpleFunction implements Aliased {
 
-		private final String alias;
+		private final SqlIdentifier alias;
 
-		AliasedFunction(String functionName, List<Expression> expressions, String alias) {
+		AliasedFunction(String functionName, List<Expression> expressions, SqlIdentifier alias) {
 			super(functionName, expressions);
 			this.alias = alias;
 		}
@@ -100,7 +123,7 @@ public class SimpleFunction extends AbstractSegment implements Expression {
 		 * @see org.springframework.data.relational.core.sql.Aliased#getAlias()
 		 */
 		@Override
-		public String getAlias() {
+		public SqlIdentifier getAlias() {
 			return alias;
 		}
 	}

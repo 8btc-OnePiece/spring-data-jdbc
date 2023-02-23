@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package org.springframework.data.relational.core.mapping;
 
 import org.springframework.data.mapping.PersistentProperty;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.lang.Nullable;
 
 /**
@@ -27,6 +28,11 @@ import org.springframework.lang.Nullable;
  */
 public interface RelationalPersistentProperty extends PersistentProperty<RelationalPersistentProperty> {
 
+	/**
+	 * @deprecated since 2.2, in favor of {@link #isAssociation()}
+	 * @return
+	 */
+	@Deprecated
 	boolean isReference();
 
 	/**
@@ -34,41 +40,15 @@ public interface RelationalPersistentProperty extends PersistentProperty<Relatio
 	 *
 	 * @return the name of the column backing this property.
 	 */
-	String getColumnName();
-
-	/**
-	 * The type to be used to store this property in the database. Multidimensional arrays are unwrapped to reflect a
-	 * top-level array type (e.g. {@code String[][]} returns {@code String[]}).
-	 *
-	 * @return a {@link Class} that is suitable for usage with JDBC drivers.
-	 * @see org.springframework.data.jdbc.support.JdbcUtil#sqlTypeFor(Class)
-	 */
-	Class<?> getColumnType();
-
-	/**
-	 * The SQL type constant used when using this property as a parameter for a SQL statement.
-	 *
-	 * @return Must not be {@code null}.
-	 * @see java.sql.Types
-	 */
-	int getSqlType();
+	SqlIdentifier getColumnName();
 
 	@Override
 	RelationalPersistentEntity<?> getOwner();
 
-	/**
-	 * @return
-	 * @deprecated Use {@link #getReverseColumnName(PersistentPropertyPathExtension)} instead.
-	 */
-	@Deprecated
-	String getReverseColumnName();
-
-	default String getReverseColumnName(PersistentPropertyPathExtension path) {
-		return getReverseColumnName();
-	}
+	SqlIdentifier getReverseColumnName(PersistentPropertyPathExtension path);
 
 	@Nullable
-	String getKeyColumn();
+	SqlIdentifier getKeyColumn();
 
 	/**
 	 * Returns if this property is a qualified property, i.e. a property referencing multiple elements that can get picked

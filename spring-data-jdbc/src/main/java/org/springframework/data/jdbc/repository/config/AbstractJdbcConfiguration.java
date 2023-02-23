@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,8 +34,8 @@ import org.springframework.data.jdbc.core.convert.RelationResolver;
 import org.springframework.data.jdbc.core.convert.SqlGeneratorSource;
 import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
 import org.springframework.data.relational.core.conversion.RelationalConverter;
+import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.mapping.NamingStrategy;
-import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 
 /**
@@ -46,15 +46,14 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
  * @author Mark Paluch
  * @author Michael Simons
  * @author Christoph Strobl
+ * @author Myeonghyeon Lee
  * @since 1.1
  */
 @Configuration(proxyBeanMethods = false)
 public class AbstractJdbcConfiguration {
 
-	// private @Autowired ObjectProvider<RelationResolver>
-
 	/**
-	 * Register a {@link RelationalMappingContext} and apply an optional {@link NamingStrategy}.
+	 * Register a {@link JdbcMappingContext} and apply an optional {@link NamingStrategy}.
 	 *
 	 * @param namingStrategy optional {@link NamingStrategy}. Use {@link NamingStrategy#INSTANCE} as fallback.
 	 * @param customConversions see {@link #jdbcCustomConversions()}.
@@ -71,26 +70,27 @@ public class AbstractJdbcConfiguration {
 	}
 
 	/**
-	 * Creates a {@link RelationalConverter} using the configured {@link #jdbcMappingContext(Optional)}. Will get
-	 * {@link #jdbcCustomConversions()} applied.
+	 * Creates a {@link RelationalConverter} using the configured
+	 * {@link #jdbcMappingContext(Optional, JdbcCustomConversions)}. Will get {@link #jdbcCustomConversions()} applied.
 	 *
 	 * @see #jdbcMappingContext(Optional, JdbcCustomConversions)
 	 * @see #jdbcCustomConversions()
 	 * @return must not be {@literal null}.
 	 */
 	@Bean
-	public JdbcConverter jdbcConverter(RelationalMappingContext mappingContext, NamedParameterJdbcOperations operations,
-			@Lazy RelationResolver relationResolver, JdbcCustomConversions conversions) {
+	public JdbcConverter jdbcConverter(JdbcMappingContext mappingContext, NamedParameterJdbcOperations operations,
+			@Lazy RelationResolver relationResolver, JdbcCustomConversions conversions, Dialect dialect) {
 
 		DefaultJdbcTypeFactory jdbcTypeFactory = new DefaultJdbcTypeFactory(operations.getJdbcOperations());
 
-		return new BasicJdbcConverter(mappingContext, relationResolver, conversions, jdbcTypeFactory);
+		return new BasicJdbcConverter(mappingContext, relationResolver, conversions, jdbcTypeFactory,
+			dialect.getIdentifierProcessing());
 	}
 
 	/**
 	 * Register custom {@link Converter}s in a {@link JdbcCustomConversions} object if required. These
 	 * {@link JdbcCustomConversions} will be registered with the
-	 * {@link #jdbcConverter(RelationalMappingContext, NamedParameterJdbcOperations, RelationResolver, JdbcCustomConversions)}.
+	 * {@link #jdbcConverter(JdbcMappingContext, NamedParameterJdbcOperations, RelationResolver, JdbcCustomConversions, Dialect)}.
 	 * Returns an empty {@link JdbcCustomConversions} instance by default.
 	 *
 	 * @return will never be {@literal null}.
@@ -111,7 +111,7 @@ public class AbstractJdbcConfiguration {
 	 */
 	@Bean
 	public JdbcAggregateTemplate jdbcAggregateTemplate(ApplicationContext applicationContext,
-			RelationalMappingContext mappingContext, JdbcConverter converter, DataAccessStrategy dataAccessStrategy) {
+			JdbcMappingContext mappingContext, JdbcConverter converter, DataAccessStrategy dataAccessStrategy) {
 
 		return new JdbcAggregateTemplate(applicationContext, mappingContext, converter, dataAccessStrategy);
 	}
@@ -125,7 +125,22 @@ public class AbstractJdbcConfiguration {
 	 */
 	@Bean
 	public DataAccessStrategy dataAccessStrategyBean(NamedParameterJdbcOperations operations, JdbcConverter jdbcConverter,
-			RelationalMappingContext context) {
-		return new DefaultDataAccessStrategy(new SqlGeneratorSource(context), context, jdbcConverter, operations);
+			JdbcMappingContext context, Dialect dialect) {
+		return new DefaultDataAccessStrategy(new SqlGeneratorSource(context, jdbcConverter, dialect), context,
+				jdbcConverter, operations);
+	}
+
+	/**
+	 * Resolves a {@link Dialect JDBC dialect} by inspecting {@link NamedParameterJdbcOperations}.
+	 *
+	 * @param operations the {@link NamedParameterJdbcOperations} allowing access to a {@link java.sql.Connection}.
+	 * @return
+	 * @since 2.0
+	 * @throws org.springframework.data.jdbc.repository.config.DialectResolver.NoDialectException if the {@link Dialect}
+	 *           cannot be determined.
+	 */
+	@Bean
+	public Dialect jdbcDialect(NamedParameterJdbcOperations operations) {
+		return DialectResolver.getDialect(operations.getJdbcOperations());
 	}
 }

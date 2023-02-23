@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,9 +28,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,6 +45,7 @@ import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.context.junit4.rules.SpringClassRule;
 import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +57,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @ContextConfiguration
 @Transactional
+@ExtendWith(SpringExtension.class)
 public class JdbcRepositoryResultSetExtractorIntegrationTests {
 
 	@Configuration
@@ -77,9 +78,6 @@ public class JdbcRepositoryResultSetExtractorIntegrationTests {
 
 	}
 
-	@ClassRule public static final SpringClassRule classRule = new SpringClassRule();
-	@Rule public SpringMethodRule methodRule = new SpringMethodRule();
-
 	@Autowired NamedParameterJdbcTemplate template;
 	@Autowired PersonRepository personRepository;
 
@@ -88,19 +86,19 @@ public class JdbcRepositoryResultSetExtractorIntegrationTests {
 
 		// NOT saving anything, so DB is empty
 
-		assertThat(personRepository.findAllPeopleWithAdresses()).isEmpty();
+		assertThat(personRepository.findAllPeopleWithAddresses()).isEmpty();
 	}
 
 	@Test // DATAJDBC-290
-	public void findAllPeopleWithAdressesReturnsOnePersonWithoutAdresses() {
+	public void findAllPeopleWithAddressesReturnsOnePersonWithoutAddresses() {
 
 		personRepository.save(new Person(null, "Joe", null));
 
-		assertThat(personRepository.findAllPeopleWithAdresses()).hasSize(1);
+		assertThat(personRepository.findAllPeopleWithAddresses()).hasSize(1);
 	}
 
 	@Test // DATAJDBC-290
-	public void findAllPeopleWithAdressesReturnsOnePersonWithAdresses() {
+	public void findAllPeopleWithAddressesReturnsOnePersonWithAddresses() {
 
 		final String personName = "Joe";
 		Person savedPerson = personRepository.save(new Person(null, personName, null));
@@ -114,13 +112,13 @@ public class JdbcRepositoryResultSetExtractorIntegrationTests {
 		MapSqlParameterSource paramsAddress2 = buildAddressParameters(savedPerson.getId(), street2);
 		template.update("insert into address (street, person_id) values (:street, :personId)", paramsAddress2);
 
-		List<Person> people = personRepository.findAllPeopleWithAdresses();
+		List<Person> people = personRepository.findAllPeopleWithAddresses();
 
 		assertThat(people).hasSize(1);
 		Person person = people.get(0);
 		assertThat(person.getName()).isEqualTo(personName);
-		assertThat(person.getAdresses()).hasSize(2);
-		assertThat(person.getAdresses()).extracting(a -> a.getStreet()).containsExactlyInAnyOrder(street1, street2);
+		assertThat(person.getAddresses()).hasSize(2);
+		assertThat(person.getAddresses()).extracting(a -> a.getStreet()).containsExactlyInAnyOrder(street1, street2);
 	}
 
 	private MapSqlParameterSource buildAddressParameters(Long id, String streetName) {
@@ -137,7 +135,7 @@ public class JdbcRepositoryResultSetExtractorIntegrationTests {
 		@Query(
 				value = "select p.id, p.name, a.id addrId, a.street from person p left join address a on(p.id = a.person_id)",
 				resultSetExtractorClass = PersonResultSetExtractor.class)
-		List<Person> findAllPeopleWithAdresses();
+		List<Person> findAllPeopleWithAddresses();
 	}
 
 	@Data
@@ -146,7 +144,7 @@ public class JdbcRepositoryResultSetExtractorIntegrationTests {
 
 		@Id private Long id;
 		private String name;
-		private List<Address> adresses;
+		private List<Address> addresses;
 	}
 
 	@Data
@@ -176,13 +174,13 @@ public class JdbcRepositoryResultSetExtractorIntegrationTests {
 					}
 				});
 
-				if (currentPerson.getAdresses() == null) {
-					currentPerson.setAdresses(new ArrayList<>());
+				if (currentPerson.getAddresses() == null) {
+					currentPerson.setAddresses(new ArrayList<>());
 				}
 
 				long addrId = rs.getLong("addrId");
 				if (!rs.wasNull()) {
-					currentPerson.getAdresses().add(new Address(addrId, rs.getString("street")));
+					currentPerson.getAddresses().add(new Address(addrId, rs.getString("street")));
 				}
 			}
 

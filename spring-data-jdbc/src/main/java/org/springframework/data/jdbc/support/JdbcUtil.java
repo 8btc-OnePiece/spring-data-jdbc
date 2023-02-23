@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 package org.springframework.data.jdbc.support;
-
-import lombok.experimental.UtilityClass;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -37,8 +35,7 @@ import org.springframework.util.Assert;
  * @author Jens Schauder
  * @author Thomas Lang
  */
-@UtilityClass
-public class JdbcUtil {
+public final class JdbcUtil {
 
 	private static final Map<Class<?>, Integer> sqlTypeMappings = new HashMap<>();
 
@@ -65,6 +62,10 @@ public class JdbcUtil {
 		sqlTypeMappings.put(Date.class, Types.DATE);
 		sqlTypeMappings.put(Time.class, Types.TIME);
 		sqlTypeMappings.put(Timestamp.class, Types.TIMESTAMP);
+	}
+
+	private JdbcUtil() {
+		throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
 	}
 
 	/**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 the original author or authors.
+ * Copyright 2018-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package org.springframework.data.relational.repository.support;
 
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.relational.repository.query.RelationalEntityInformation;
 import org.springframework.data.repository.core.support.PersistentEntityInformation;
 import org.springframework.lang.Nullable;
@@ -32,7 +33,7 @@ public class MappingRelationalEntityInformation<T, ID> extends PersistentEntityI
 		implements RelationalEntityInformation<T, ID> {
 
 	private final RelationalPersistentEntity<T> entityMetadata;
-	private final @Nullable String customTableName;
+	private final @Nullable SqlIdentifier customTableName;
 	private final Class<ID> fallbackIdType;
 
 	/**
@@ -81,14 +82,14 @@ public class MappingRelationalEntityInformation<T, ID> extends PersistentEntityI
 		super(entity);
 
 		this.entityMetadata = entity;
-		this.customTableName = customTableName;
+		this.customTableName = customTableName == null ? null : SqlIdentifier.quoted(customTableName);
 		this.fallbackIdType = idType != null ? idType : (Class<ID>) Long.class;
 	}
 
 	/* (non-Javadoc)
 	 * @see org.springframework.data.relational.repository.query.RelationalEntityInformation#getTableName()
 	 */
-	public String getTableName() {
+	public SqlIdentifier getTableName() {
 		return customTableName == null ? entityMetadata.getTableName() : customTableName;
 	}
 

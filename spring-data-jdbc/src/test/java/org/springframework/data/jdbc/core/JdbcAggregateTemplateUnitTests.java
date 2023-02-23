@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,21 +23,21 @@ import static org.mockito.Mockito.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.junit.MockitoJUnitRunner;
-import org.mockito.stubbing.Answer;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jdbc.core.convert.BasicJdbcConverter;
 import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.jdbc.core.convert.RelationResolver;
 import org.springframework.data.mapping.callback.EntityCallbacks;
-import org.springframework.data.relational.core.conversion.AggregateChange;
+import org.springframework.data.relational.core.conversion.MutableAggregateChange;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.NamingStrategy;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
@@ -53,8 +53,9 @@ import org.springframework.data.relational.core.mapping.event.BeforeSaveCallback
  *
  * @author Christoph Strobl
  * @author Mark Paluch
+ * @author Milan Milanov
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class JdbcAggregateTemplateUnitTests {
 
 	JdbcAggregateOperations template;
@@ -64,7 +65,7 @@ public class JdbcAggregateTemplateUnitTests {
 	@Mock RelationResolver relationResolver;
 	@Mock EntityCallbacks callbacks;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 
 		RelationalMappingContext mappingContext = new RelationalMappingContext(NamingStrategy.INSTANCE);
@@ -88,7 +89,7 @@ public class JdbcAggregateTemplateUnitTests {
 	}
 
 	@Test // DATAJDBC-378
-	public void findAllByIdWithEmpthListMustReturnEmptyResult() {
+	public void findAllByIdWithEmptyListMustReturnEmptyResult() {
 		assertThat(template.findAllById(emptyList(), SampleEntity.class)).isEmpty();
 	}
 
@@ -104,7 +105,7 @@ public class JdbcAggregateTemplateUnitTests {
 		SampleEntity last = template.save(first);
 
 		verify(callbacks).callback(BeforeConvertCallback.class, first);
-		verify(callbacks).callback(eq(BeforeSaveCallback.class), eq(second), any(AggregateChange.class));
+		verify(callbacks).callback(eq(BeforeSaveCallback.class), eq(second), any(MutableAggregateChange.class));
 		verify(callbacks).callback(AfterSaveCallback.class, third);
 		assertThat(last).isEqualTo(third);
 	}
@@ -119,7 +120,7 @@ public class JdbcAggregateTemplateUnitTests {
 
 		template.delete(first, SampleEntity.class);
 
-		verify(callbacks).callback(eq(BeforeDeleteCallback.class), eq(first), any(AggregateChange.class));
+		verify(callbacks).callback(eq(BeforeDeleteCallback.class), eq(first), any(MutableAggregateChange.class));
 		verify(callbacks).callback(AfterDeleteCallback.class, second);
 	}
 
@@ -138,6 +139,50 @@ public class JdbcAggregateTemplateUnitTests {
 		when(callbacks.callback(any(Class.class), eq(neumann1), any())).thenReturn(neumann2);
 
 		Iterable<SampleEntity> all = template.findAll(SampleEntity.class);
+
+		verify(callbacks).callback(AfterLoadCallback.class, alfred1);
+		verify(callbacks).callback(AfterLoadCallback.class, neumann1);
+
+		assertThat(all).containsExactly(alfred2, neumann2);
+	}
+
+	@Test // DATAJDBC-101
+	public void callbackOnLoadSorted() {
+
+		SampleEntity alfred1 = new SampleEntity(23L, "Alfred");
+		SampleEntity alfred2 = new SampleEntity(23L, "Alfred E.");
+
+		SampleEntity neumann1 = new SampleEntity(42L, "Neumann");
+		SampleEntity neumann2 = new SampleEntity(42L, "Alfred E. Neumann");
+
+		when(dataAccessStrategy.findAll(SampleEntity.class, Sort.by("name"))).thenReturn(asList(alfred1, neumann1));
+
+		when(callbacks.callback(any(Class.class), eq(alfred1), any())).thenReturn(alfred2);
+		when(callbacks.callback(any(Class.class), eq(neumann1), any())).thenReturn(neumann2);
+
+		Iterable<SampleEntity> all = template.findAll(SampleEntity.class, Sort.by("name"));
+
+		verify(callbacks).callback(AfterLoadCallback.class, alfred1);
+		verify(callbacks).callback(AfterLoadCallback.class, neumann1);
+
+		assertThat(all).containsExactly(alfred2, neumann2);
+	}
+
+	@Test // DATAJDBC-101
+	public void callbackOnLoadPaged() {
+
+		SampleEntity alfred1 = new SampleEntity(23L, "Alfred");
+		SampleEntity alfred2 = new SampleEntity(23L, "Alfred E.");
+
+		SampleEntity neumann1 = new SampleEntity(42L, "Neumann");
+		SampleEntity neumann2 = new SampleEntity(42L, "Alfred E. Neumann");
+
+		when(dataAccessStrategy.findAll(SampleEntity.class, PageRequest.of(0, 20))).thenReturn(asList(alfred1, neumann1));
+
+		when(callbacks.callback(any(Class.class), eq(alfred1), any())).thenReturn(alfred2);
+		when(callbacks.callback(any(Class.class), eq(neumann1), any())).thenReturn(neumann2);
+
+		Iterable<SampleEntity> all = template.findAll(SampleEntity.class, PageRequest.of(0, 20));
 
 		verify(callbacks).callback(AfterLoadCallback.class, alfred1);
 		verify(callbacks).callback(AfterLoadCallback.class, neumann1);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ class CachingNamingStrategy implements NamingStrategy {
 	 *
 	 * @param delegate must not be {@literal null}.
 	 */
-	public CachingNamingStrategy(NamingStrategy delegate) {
+	CachingNamingStrategy(NamingStrategy delegate) {
 
 		Assert.notNull(delegate, "Delegate must not be null!");
 
@@ -66,6 +66,7 @@ class CachingNamingStrategy implements NamingStrategy {
 	 * @see org.springframework.data.relational.core.mapping.NamingStrategy#getQualifiedTableName(java.lang.Class)
 	 */
 	@Override
+	@Deprecated
 	public String getQualifiedTableName(Class<?> type) {
 		return qualifiedTableNames.computeIfAbsent(type, delegate::getQualifiedTableName);
 	}

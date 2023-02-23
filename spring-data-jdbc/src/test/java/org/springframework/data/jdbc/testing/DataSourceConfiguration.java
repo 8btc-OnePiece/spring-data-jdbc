@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,16 @@
  */
 package org.springframework.data.jdbc.testing;
 
+import static org.awaitility.pollinterval.FibonacciPollInterval.*;
+
+import java.sql.Connection;
+import java.util.concurrent.TimeUnit;
+
 import javax.sql.DataSource;
+
+import org.awaitility.Awaitility;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -36,12 +45,16 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 @Configuration
 abstract class DataSourceConfiguration {
 
+	private static final Logger LOG = LoggerFactory.getLogger(DataSourceConfiguration.class);
+
 	@Autowired Class<?> testClass;
 	@Autowired Environment environment;
 
 	@Bean
 	DataSource dataSource() {
-		return createDataSource();
+		DataSource dataSource = createDataSource();
+		verifyConnection(dataSource);
+		return dataSource;
 	}
 
 	@Bean
@@ -76,4 +89,24 @@ abstract class DataSourceConfiguration {
 	 * @param populator will never be {@literal null}.
 	 */
 	protected void customizePopulator(ResourceDatabasePopulator populator) {}
+
+	private void verifyConnection(DataSource dataSource) {
+
+		Awaitility.await() //
+				.atMost(5L, TimeUnit.MINUTES) //
+				.pollInterval(fibonacci(TimeUnit.SECONDS)) //
+				.ignoreExceptions() //
+				.until(() -> {
+
+					if (LOG.isDebugEnabled()) {
+						LOG.debug(String.format("Verifying connectivity to %s...", dataSource));
+					}
+
+					try (Connection connection = dataSource.getConnection()) {
+						return true;
+					}
+				});
+
+		LOG.info("Connectivity verified");
+	}
 }

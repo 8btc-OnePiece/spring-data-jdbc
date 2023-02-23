@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 package org.springframework.data.relational.core.dialect;
 
+import org.springframework.data.relational.core.sql.IdentifierProcessing;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.relational.core.sql.render.SelectRenderContext;
 
 /**
@@ -24,6 +26,7 @@ import org.springframework.data.relational.core.sql.render.SelectRenderContext;
  *
  * @author Mark Paluch
  * @author Jens Schauder
+ * @author Myeonghyeon Lee
  * @since 1.1
  */
 public interface Dialect {
@@ -34,6 +37,13 @@ public interface Dialect {
 	 * @return the {@link LimitClause} used by this dialect.
 	 */
 	LimitClause limit();
+
+	/**
+	 * Return the {@link LockClause} used by this dialect.
+	 *
+	 * @return the {@link LockClause} used by this dialect.
+	 */
+	LockClause lock();
 
 	/**
 	 * Returns the array support object that describes how array-typed columns are supported by this dialect.
@@ -50,4 +60,29 @@ public interface Dialect {
 	 * @return the {@link SelectRenderContext}.
 	 */
 	SelectRenderContext getSelectContext();
+
+	/**
+	 * Returns the {@link IdentifierProcessing} used for processing {@link SqlIdentifier} when converting them to SQL
+	 * snippets or parameter names.
+	 *
+	 * @return the {@link IdentifierProcessing}. Guaranteed to be not {@literal null}.
+	 * @since 2.0
+	 */
+	default IdentifierProcessing getIdentifierProcessing() {
+		return IdentifierProcessing.ANSI;
+	}
+
+	/**
+	 * Returns the {@link Escaper} used for {@code LIKE} value escaping.
+	 *
+	 * @return the {@link Escaper} used for {@code LIKE} value escaping.
+	 * @since 2.0
+	 */
+	default Escaper getLikeEscaper() {
+		return Escaper.DEFAULT;
+	}
+
+	default IdGeneration getIdGeneration(){
+		return IdGeneration.DEFAULT;
+	};
 }

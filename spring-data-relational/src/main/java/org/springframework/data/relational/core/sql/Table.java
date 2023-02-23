@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,10 +33,13 @@ import org.springframework.util.Assert;
  */
 public class Table extends AbstractSegment {
 
-	private final String name;
+	private final SqlIdentifier name;
 
 	Table(String name) {
-		super();
+		this.name = SqlIdentifier.unquoted(name);
+	}
+
+	Table(SqlIdentifier name) {
 		this.name = name;
 	}
 
@@ -48,7 +51,21 @@ public class Table extends AbstractSegment {
 	 */
 	public static Table create(String name) {
 
-		Assert.hasText(name, "Name must not be null or empty!");
+		Assert.hasText(name, "Name must not be null or empty");
+
+		return new Table(name);
+	}
+
+	/**
+	 * Creates a new {@link Table} given {@code name}.
+	 *
+	 * @param name must not be {@literal null} or empty.
+	 * @return the new {@link Table}.
+	 * @since 2.0
+	 */
+	public static Table create(SqlIdentifier name) {
+
+		Assert.notNull(name, "Name must not be null");
 
 		return new Table(name);
 	}
@@ -78,6 +95,20 @@ public class Table extends AbstractSegment {
 
 		Assert.hasText(alias, "Alias must not be null or empty!");
 
+		return new AliasedTable(name, SqlIdentifier.unquoted(alias));
+	}
+
+	/**
+	 * Creates a new {@link Table} aliased to {@code alias}.
+	 *
+	 * @param alias must not be {@literal null} or empty.
+	 * @return the new {@link Table} using the {@code alias}.
+	 * @since 2.0
+	 */
+	public Table as(SqlIdentifier alias) {
+
+		Assert.notNull(alias, "Alias must not be null");
+
 		return new AliasedTable(name, alias);
 	}
 
@@ -98,6 +129,23 @@ public class Table extends AbstractSegment {
 	}
 
 	/**
+	 * Creates a new {@link Column} associated with this {@link Table}.
+	 * <p/>
+	 * Note: This {@link Table} does not track column creation and there is no possibility to enumerate all
+	 * {@link Column}s that were created for this table.
+	 *
+	 * @param name column name, must not be {@literal null} or empty.
+	 * @return a new {@link Column} associated with this {@link Table}.
+	 * @since 2.0
+	 */
+	public Column column(SqlIdentifier name) {
+
+		Assert.notNull(name, "Name must not be null");
+
+		return new Column(name, this);
+	}
+
+	/**
 	 * Creates a {@link List} of {@link Column}s associated with this {@link Table}.
 	 * <p/>
 	 * Note: This {@link Table} does not track column creation and there is no possibility to enumerate all
@@ -111,6 +159,28 @@ public class Table extends AbstractSegment {
 		Assert.notNull(names, "Names must not be null");
 
 		return columns(Arrays.asList(names));
+	}
+
+	/**
+	 * Creates a {@link List} of {@link Column}s associated with this {@link Table}.
+	 * <p/>
+	 * Note: This {@link Table} does not track column creation and there is no possibility to enumerate all
+	 * {@link Column}s that were created for this table.
+	 *
+	 * @param names column names, must not be {@literal null} or empty.
+	 * @return a new {@link List} of {@link Column}s associated with this {@link Table}.
+	 * @since 2.0
+	 */
+	public List<Column> columns(SqlIdentifier... names) {
+
+		Assert.notNull(names, "Names must not be null");
+
+		List<Column> columns = new ArrayList<>();
+		for (SqlIdentifier name : names) {
+			columns.add(column(name));
+		}
+
+		return columns;
 	}
 
 	/**
@@ -153,7 +223,7 @@ public class Table extends AbstractSegment {
 	 * (non-Javadoc)
 	 * @see org.springframework.data.relational.core.sql.Named#getName()
 	 */
-	public String getName() {
+	public SqlIdentifier getName() {
 		return name;
 	}
 
@@ -161,7 +231,7 @@ public class Table extends AbstractSegment {
 	 * @return the table name as it is used in references. This can be the actual {@link #getName() name} or an
 	 *         {@link Aliased#getAlias() alias}.
 	 */
-	public String getReferenceName() {
+	public SqlIdentifier getReferenceName() {
 		return name;
 	}
 
@@ -171,7 +241,7 @@ public class Table extends AbstractSegment {
 	 */
 	@Override
 	public String toString() {
-		return name;
+		return name.toString();
 	}
 
 	/**
@@ -179,12 +249,20 @@ public class Table extends AbstractSegment {
 	 */
 	static class AliasedTable extends Table implements Aliased {
 
-		private final String alias;
+		private final SqlIdentifier alias;
 
 		AliasedTable(String name, String alias) {
 			super(name);
 
-			Assert.hasText(alias, "Alias must not be null or empty!");
+			Assert.hasText(alias, "Alias must not be null or empty");
+
+			this.alias = SqlIdentifier.unquoted(alias);
+		}
+
+		AliasedTable(SqlIdentifier name, SqlIdentifier alias) {
+			super(name);
+
+			Assert.notNull(alias, "Alias must not be null");
 
 			this.alias = alias;
 		}
@@ -194,7 +272,7 @@ public class Table extends AbstractSegment {
 		 * @see org.springframework.data.relational.core.sql.Aliased#getAlias()
 		 */
 		@Override
-		public String getAlias() {
+		public SqlIdentifier getAlias() {
 			return alias;
 		}
 
@@ -203,7 +281,7 @@ public class Table extends AbstractSegment {
 		 * @see org.springframework.data.relational.core.sql.Table#getReferenceName()
 		 */
 		@Override
-		public String getReferenceName() {
+		public SqlIdentifier getReferenceName() {
 			return getAlias();
 		}
 

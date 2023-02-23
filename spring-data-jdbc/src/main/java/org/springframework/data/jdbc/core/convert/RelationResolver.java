@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package org.springframework.data.jdbc.core.convert;
 
 import org.springframework.data.mapping.PersistentPropertyPath;
 import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
-import org.springframework.data.relational.domain.Identifier;
 
 /**
  * Resolves relations within an aggregate.
@@ -35,5 +34,6 @@ public interface RelationResolver {
 	 * @param path the path from the aggregate root to the entities to be resolved. Must not be {@literal null}.
 	 * @return guaranteed to be not {@literal null}.
 	 */
-	Iterable<Object> findAllByPath(Identifier identifier, PersistentPropertyPath<RelationalPersistentProperty> path);
+	Iterable<Object> findAllByPath(Identifier identifier,
+			PersistentPropertyPath<? extends RelationalPersistentProperty> path);
 }

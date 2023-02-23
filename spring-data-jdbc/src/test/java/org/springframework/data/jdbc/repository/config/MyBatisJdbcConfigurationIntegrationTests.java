@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,15 @@ import static org.mockito.Mockito.*;
 import java.util.List;
 
 import org.apache.ibatis.session.SqlSession;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jdbc.core.convert.CascadingDataAccessStrategy;
 import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
 import org.springframework.data.jdbc.mybatis.MyBatisDataAccessStrategy;
+import org.springframework.data.relational.core.dialect.Dialect;
+import org.springframework.data.relational.core.dialect.HsqlDbDialect;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -50,7 +53,7 @@ public class MyBatisJdbcConfigurationIntegrationTests extends AbstractJdbcConfig
 						assertThat(strategies.get(0)).isInstanceOf(MyBatisDataAccessStrategy.class);
 					});
 
-		}, MyBatisJdbcConfiguration.class, MyBatisInfrastructure.class);
+		}, MyBatisJdbcConfigurationUnderTest.class, MyBatisInfrastructure.class);
 	}
 
 	@Configuration
@@ -59,6 +62,15 @@ public class MyBatisJdbcConfigurationIntegrationTests extends AbstractJdbcConfig
 		@Bean
 		public SqlSession session() {
 			return mock(SqlSession.class);
+		}
+	}
+
+	public static class MyBatisJdbcConfigurationUnderTest extends MyBatisJdbcConfiguration {
+
+		@Override
+		@Bean
+		public Dialect jdbcDialect(NamedParameterJdbcOperations operations) {
+			return HsqlDbDialect.INSTANCE;
 		}
 	}
 }

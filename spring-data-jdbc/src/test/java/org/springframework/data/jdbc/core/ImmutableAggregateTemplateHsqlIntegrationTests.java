@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@ import static java.util.Collections.*;
 import static org.assertj.core.api.Assertions.*;
 
 import lombok.Value;
-import lombok.experimental.Wither;
+import lombok.With;
 
 import org.assertj.core.api.SoftAssertions;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
@@ -32,11 +32,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
+import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.jdbc.testing.TestConfiguration;
-import org.springframework.data.relational.core.conversion.RelationalConverter;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.context.junit4.rules.SpringClassRule;
 import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,10 +51,9 @@ import org.springframework.transaction.annotation.Transactional;
 @ContextConfiguration
 @Transactional
 @ActiveProfiles("hsql")
+@ExtendWith(SpringExtension.class)
 public class ImmutableAggregateTemplateHsqlIntegrationTests {
 
-	@ClassRule public static final SpringClassRule classRule = new SpringClassRule();
-	@Rule public SpringMethodRule methodRule = new SpringMethodRule();
 	@Autowired JdbcAggregateOperations template;
 
 	@Test // DATAJDBC-241
@@ -254,6 +254,17 @@ public class ImmutableAggregateTemplateHsqlIntegrationTests {
 		assertThat(manual.content).isEqualTo("new content");
 	}
 
+	@Test // DATAJDBC-545
+	public void setIdViaConstructor() {
+
+		WithCopyConstructor entity = new WithCopyConstructor(null, "Alfred");
+
+		WithCopyConstructor saved = template.save(entity);
+
+		assertThat(saved).isNotEqualTo(entity);
+		assertThat(saved.id).isNotNull();
+	}
+
 	private static LegoSet createLegoSet(Manual manual) {
 
 		return new LegoSet(null, "Star Destroyer", manual, null);
@@ -270,7 +281,7 @@ public class ImmutableAggregateTemplateHsqlIntegrationTests {
 	}
 
 	@Value
-	@Wither
+	@With
 	static class LegoSet {
 
 		@Id Long id;
@@ -280,7 +291,7 @@ public class ImmutableAggregateTemplateHsqlIntegrationTests {
 	}
 
 	@Value
-	@Wither
+	@With
 	static class Manual {
 
 		@Id Long id;
@@ -288,11 +299,22 @@ public class ImmutableAggregateTemplateHsqlIntegrationTests {
 	}
 
 	@Value
-	@Wither
+	@With
 	static class Author {
 
 		@Id Long id;
 		String name;
+	}
+
+	static class WithCopyConstructor {
+		@Id
+		private final Long id;
+		private final String name;
+
+		WithCopyConstructor(Long id, String name) {
+			this.id = id;
+			this.name = name;
+		}
 	}
 
 	@Configuration
@@ -306,7 +328,7 @@ public class ImmutableAggregateTemplateHsqlIntegrationTests {
 
 		@Bean
 		JdbcAggregateOperations operations(ApplicationEventPublisher publisher, RelationalMappingContext context,
-				DataAccessStrategy dataAccessStrategy, RelationalConverter converter) {
+				DataAccessStrategy dataAccessStrategy, JdbcConverter converter) {
 			return new JdbcAggregateTemplate(publisher, context, converter, dataAccessStrategy);
 		}
 	}

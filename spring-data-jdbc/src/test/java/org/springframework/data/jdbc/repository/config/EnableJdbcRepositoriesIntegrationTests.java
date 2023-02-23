@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,18 +21,20 @@ import static org.mockito.Mockito.*;
 import lombok.Data;
 
 import java.lang.reflect.Field;
+import java.util.Optional;
 
 import javax.sql.DataSource;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
 import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
 import org.springframework.data.jdbc.core.convert.DefaultDataAccessStrategy;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
@@ -40,14 +42,15 @@ import org.springframework.data.jdbc.core.convert.SqlGeneratorSource;
 import org.springframework.data.jdbc.repository.QueryMappingConfiguration;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositoriesIntegrationTests.TestConfiguration;
 import org.springframework.data.jdbc.repository.support.JdbcRepositoryFactoryBean;
+import org.springframework.data.mapping.PersistentEntity;
+import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.repository.CrudRepository;
-import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.util.ReflectionUtils;
 
 /**
@@ -58,7 +61,7 @@ import org.springframework.util.ReflectionUtils;
  * @author Evgeni Dimitrov
  * @author Fei Dong
  */
-@RunWith(SpringJUnit4ClassRunner.class)
+@ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = TestConfiguration.class)
 public class EnableJdbcRepositoriesIntegrationTests {
 
@@ -69,7 +72,6 @@ public class EnableJdbcRepositoriesIntegrationTests {
 			"dataAccessStrategy");
 	public static final RowMapper DUMMY_ENTITY_ROW_MAPPER = mock(RowMapper.class);
 	public static final RowMapper STRING_ROW_MAPPER = mock(RowMapper.class);
-	public static final ResultSetExtractor<Integer> INTEGER_RESULT_SET_EXTRACTOR = mock(ResultSetExtractor.class);
 
 	@Autowired JdbcRepositoryFactoryBean factoryBean;
 	@Autowired DummyRepository repository;
@@ -78,7 +80,7 @@ public class EnableJdbcRepositoriesIntegrationTests {
 	@Autowired @Qualifier("qualifierJdbcOperations") NamedParameterJdbcOperations qualifierJdbcOperations;
 	@Autowired @Qualifier("qualifierDataAccessStrategy") DataAccessStrategy qualifierDataAccessStrategy;
 
-	@BeforeClass
+	@BeforeAll
 	public static void setup() {
 
 		MAPPER_MAP.setAccessible(true);
@@ -91,9 +93,10 @@ public class EnableJdbcRepositoriesIntegrationTests {
 
 		assertThat(repository).isNotNull();
 
-		Iterable<DummyEntity> all = repository.findAll();
+		long count = repository.count();
 
-		assertThat(all).isNotNull();
+		// the custom base class has a result of 23 hard wired.
+		assertThat(count).isEqualTo(23L);
 	}
 
 	@Test // DATAJDBC-166
@@ -129,7 +132,8 @@ public class EnableJdbcRepositoriesIntegrationTests {
 	@ComponentScan("org.springframework.data.jdbc.testing")
 	@EnableJdbcRepositories(considerNestedRepositories = true,
 			includeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = DummyRepository.class),
-			jdbcOperationsRef = "qualifierJdbcOperations", dataAccessStrategyRef = "qualifierDataAccessStrategy")
+			jdbcOperationsRef = "qualifierJdbcOperations", dataAccessStrategyRef = "qualifierDataAccessStrategy",
+			repositoryBaseClass = DummyRepositoryBaseClass.class)
 	static class TestConfiguration {
 
 		@Bean
@@ -153,8 +157,81 @@ public class EnableJdbcRepositoriesIntegrationTests {
 		@Bean("qualifierDataAccessStrategy")
 		DataAccessStrategy defaultDataAccessStrategy(
 				@Qualifier("namedParameterJdbcTemplate") NamedParameterJdbcOperations template,
-				RelationalMappingContext context, JdbcConverter converter) {
-			return new DefaultDataAccessStrategy(new SqlGeneratorSource(context), context, converter, template);
+				RelationalMappingContext context, JdbcConverter converter, Dialect dialect) {
+			return new DefaultDataAccessStrategy(new SqlGeneratorSource(context, converter, dialect), context, converter,
+					template);
+		}
+
+		@Bean
+		Dialect jdbcDialect(@Qualifier("qualifierJdbcOperations") NamedParameterJdbcOperations operations) {
+			return DialectResolver.getDialect(operations.getJdbcOperations());
+		}
+	}
+
+	private static class DummyRepositoryBaseClass<T, ID> implements CrudRepository<T, ID> {
+
+		DummyRepositoryBaseClass(JdbcAggregateTemplate template, PersistentEntity<?, ?> persistentEntity) {
+
+		}
+
+		@Override
+		public <S extends T> S save(S s) {
+			return null;
+		}
+
+		@Override
+		public <S extends T> Iterable<S> saveAll(Iterable<S> iterable) {
+			return null;
+		}
+
+		@Override
+		public Optional<T> findById(ID id) {
+			return Optional.empty();
+		}
+
+		@Override
+		public boolean existsById(ID id) {
+			return false;
+		}
+
+		@Override
+		public Iterable<T> findAll() {
+			return null;
+		}
+
+		@Override
+		public Iterable<T> findAllById(Iterable<ID> iterable) {
+			return null;
+		}
+
+		@Override
+		public long count() {
+			return 23;
+		}
+
+		@Override
+		public void deleteById(ID id) {
+
+		}
+
+		@Override
+		public void delete(T t) {
+
+		}
+
+		@Override
+		public void deleteAll(Iterable<? extends T> iterable) {
+
+		}
+
+		@Override
+		public void deleteAll() {
+
+		}
+
+		@Override
+		public void deleteAllById(Iterable<? extends ID> ids) {
+
 		}
 	}
 }

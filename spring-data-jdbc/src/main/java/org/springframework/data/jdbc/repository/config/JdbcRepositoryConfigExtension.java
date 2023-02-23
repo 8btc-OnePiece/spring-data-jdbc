@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Locale;
+import java.util.Optional;
 
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.data.jdbc.repository.support.JdbcRepositoryFactoryBean;
@@ -34,8 +35,11 @@ import org.springframework.util.StringUtils;
  * @author Jens Schauder
  * @author Fei Dong
  * @author Mark Paluch
+ * @author Antoine Sauray
  */
 public class JdbcRepositoryConfigExtension extends RepositoryConfigurationExtensionSupport {
+
+	private static final String DEFAULT_TRANSACTION_MANAGER_BEAN_NAME = "transactionManager";
 
 	/*
 	 * (non-Javadoc)
@@ -78,6 +82,9 @@ public class JdbcRepositoryConfigExtension extends RepositoryConfigurationExtens
 		source.getAttribute("dataAccessStrategyRef") //
 				.filter(StringUtils::hasText) //
 				.ifPresent(s -> builder.addPropertyReference("dataAccessStrategy", s));
+
+		Optional<String> transactionManagerRef = source.getAttribute("transactionManagerRef");
+		builder.addPropertyValue("transactionManager", transactionManagerRef.orElse(DEFAULT_TRANSACTION_MANAGER_BEAN_NAME));
 	}
 
 	/**

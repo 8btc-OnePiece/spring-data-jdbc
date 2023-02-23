@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,17 @@ package org.springframework.data.relational.core.conversion;
 
 import lombok.Data;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.assertj.core.api.Assertions;
 import org.assertj.core.groups.Tuple;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.conversion.AggregateChange.Kind;
+import org.springframework.data.relational.core.conversion.DbAction.AcquireLockAllRoot;
+import org.springframework.data.relational.core.conversion.DbAction.AcquireLockRoot;
 import org.springframework.data.relational.core.conversion.DbAction.Delete;
 import org.springframework.data.relational.core.conversion.DbAction.DeleteAll;
 import org.springframework.data.relational.core.conversion.DbAction.DeleteAllRoot;
@@ -34,8 +38,9 @@ import org.springframework.data.relational.core.mapping.RelationalMappingContext
  * Unit tests for the {@link org.springframework.data.relational.core.conversion.RelationalEntityDeleteWriter}
  *
  * @author Jens Schauder
+ * @author Myeonghyeon Lee
  */
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class RelationalEntityDeleteWriterUnitTests {
 
 	RelationalEntityDeleteWriter converter = new RelationalEntityDeleteWriter(new RelationalMappingContext());
@@ -45,33 +50,68 @@ public class RelationalEntityDeleteWriterUnitTests {
 
 		SomeEntity entity = new SomeEntity(23L);
 
-		AggregateChange<SomeEntity> aggregateChange = new AggregateChange<>(Kind.DELETE, SomeEntity.class, entity);
+		MutableAggregateChange<SomeEntity> aggregateChange = MutableAggregateChange.forDelete(SomeEntity.class, entity);
 
 		converter.write(entity.id, aggregateChange);
 
-		Assertions.assertThat(aggregateChange.getActions())
+		Assertions.assertThat(extractActions(aggregateChange))
 				.extracting(DbAction::getClass, DbAction::getEntityType, DbActionTestSupport::extractPath) //
 				.containsExactly( //
+						Tuple.tuple(AcquireLockRoot.class, SomeEntity.class, ""), //
 						Tuple.tuple(Delete.class, YetAnother.class, "other.yetAnother"), //
 						Tuple.tuple(Delete.class, OtherEntity.class, "other"), //
 						Tuple.tuple(DeleteRoot.class, SomeEntity.class, "") //
 				);
 	}
 
+	@Test // DATAJDBC-493
+	public void deleteDeletesTheEntityAndNoReferencedEntities() {
+
+		SingleEntity entity = new SingleEntity(23L);
+
+		MutableAggregateChange<SingleEntity> aggregateChange = MutableAggregateChange.forDelete(SingleEntity.class, entity);
+
+		converter.write(entity.id, aggregateChange);
+
+		Assertions.assertThat(extractActions(aggregateChange))
+				.extracting(DbAction::getClass, DbAction::getEntityType, DbActionTestSupport::extractPath) //
+				.containsExactly(Tuple.tuple(DeleteRoot.class, SingleEntity.class, ""));
+	}
+
 	@Test // DATAJDBC-188
 	public void deleteAllDeletesAllEntitiesAndReferencedEntities() {
 
-		AggregateChange<SomeEntity> aggregateChange = new AggregateChange<>(Kind.DELETE, SomeEntity.class, null);
+		MutableAggregateChange<SomeEntity> aggregateChange = MutableAggregateChange.forDelete(SomeEntity.class, null);
 
 		converter.write(null, aggregateChange);
 
-		Assertions.assertThat(aggregateChange.getActions())
+		Assertions.assertThat(extractActions(aggregateChange))
 				.extracting(DbAction::getClass, DbAction::getEntityType, DbActionTestSupport::extractPath) //
 				.containsExactly( //
+						Tuple.tuple(AcquireLockAllRoot.class, SomeEntity.class, ""), //
 						Tuple.tuple(DeleteAll.class, YetAnother.class, "other.yetAnother"), //
 						Tuple.tuple(DeleteAll.class, OtherEntity.class, "other"), //
 						Tuple.tuple(DeleteAllRoot.class, SomeEntity.class, "") //
 				);
+	}
+
+	@Test // DATAJDBC-493
+	public void deleteAllDeletesAllEntitiesAndNoReferencedEntities() {
+
+		MutableAggregateChange<SingleEntity> aggregateChange = MutableAggregateChange.forDelete(SingleEntity.class, null);
+
+		converter.write(null, aggregateChange);
+
+		Assertions.assertThat(extractActions(aggregateChange))
+				.extracting(DbAction::getClass, DbAction::getEntityType, DbActionTestSupport::extractPath) //
+				.containsExactly(Tuple.tuple(DeleteAllRoot.class, SingleEntity.class, ""));
+	}
+
+	private List<DbAction<?>> extractActions(MutableAggregateChange<?> aggregateChange) {
+
+		List<DbAction<?>> actions = new ArrayList<>();
+		aggregateChange.forEachAction(actions::add);
+		return actions;
 	}
 
 	@Data
@@ -93,5 +133,11 @@ public class RelationalEntityDeleteWriterUnitTests {
 	@Data
 	private class YetAnother {
 		@Id final Long id;
+	}
+
+	@Data
+	private class SingleEntity {
+		@Id final Long id;
+		String name;
 	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
+import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
 import org.springframework.data.jdbc.mybatis.MyBatisDataAccessStrategy;
+import org.springframework.data.relational.core.dialect.Dialect;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 
@@ -38,13 +40,13 @@ public class MyBatisJdbcConfiguration extends AbstractJdbcConfiguration {
 
 	/*
 	 * (non-Javadoc)
-	 * @see org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration#dataAccessStrategyBean(org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations, org.springframework.data.jdbc.core.convert.JdbcConverter, org.springframework.data.relational.core.mapping.RelationalMappingContext)
+	 * @see org.springframework.data.jdbc.repository.config.AbstractJdbcConfiguration#dataAccessStrategyBean(org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations, org.springframework.data.jdbc.core.convert.JdbcConverter, org.springframework.data.jdbc.core.mapping.JdbcMappingContext)
 	 */
 	@Bean
 	@Override
 	public DataAccessStrategy dataAccessStrategyBean(NamedParameterJdbcOperations operations, JdbcConverter jdbcConverter,
-			RelationalMappingContext context) {
+			JdbcMappingContext context, Dialect dialect) {
 
-		return MyBatisDataAccessStrategy.createCombinedAccessStrategy(context, jdbcConverter, operations, session);
+		return MyBatisDataAccessStrategy.createCombinedAccessStrategy(context, jdbcConverter, operations, session, dialect);
 	}
 }

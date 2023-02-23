@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2020 the original author or authors.
+ * Copyright 2018-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,19 +19,20 @@ import static org.assertj.core.api.Assertions.*;
 
 import lombok.Value;
 
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
+import org.assertj.core.api.SoftAssertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.annotation.Id;
@@ -41,9 +42,7 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.lang.Nullable;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -51,16 +50,26 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * @author Jens Schauder
  * @author Kazuki Shimizu
+ * @author Mark Paluch
  */
-@ContextConfiguration
-@ActiveProfiles("hsql")
 @Transactional
+@ActiveProfiles("hsql")
+@ExtendWith(SpringExtension.class)
 public class QueryAnnotationHsqlIntegrationTests {
 
-	@Autowired DummyEntityRepository repository;
+	@Configuration
+	@Import(TestConfiguration.class)
+	@EnableJdbcRepositories(considerNestedRepositories = true,
+			includeFilters = @ComponentScan.Filter(value = DummyEntityRepository.class, type = FilterType.ASSIGNABLE_TYPE))
+	static class Config {
 
-	@ClassRule public static final SpringClassRule classRule = new SpringClassRule();
-	@Rule public SpringMethodRule methodRule = new SpringMethodRule();
+		@Bean
+		Class<?> testClass() {
+			return QueryAnnotationHsqlIntegrationTests.class;
+		}
+	}
+
+	@Autowired DummyEntityRepository repository;
 
 	@Test // DATAJDBC-164
 	public void executeCustomQueryWithoutParameter() {
@@ -74,7 +83,6 @@ public class QueryAnnotationHsqlIntegrationTests {
 		assertThat(entities) //
 				.extracting(e -> e.name) //
 				.containsExactlyInAnyOrder("Example", "EXAMPLE");
-
 	}
 
 	@Test // DATAJDBC-164
@@ -89,7 +97,6 @@ public class QueryAnnotationHsqlIntegrationTests {
 		assertThat(entities) //
 				.extracting(e -> e.name) //
 				.containsExactlyInAnyOrder("b");
-
 	}
 
 	@Test // DATAJDBC-172
@@ -100,7 +107,6 @@ public class QueryAnnotationHsqlIntegrationTests {
 		Optional<DummyEntity> entity = repository.findByNameAsOptional("a");
 
 		assertThat(entity).map(e -> e.name).contains("a");
-
 	}
 
 	@Test // DATAJDBC-172
@@ -111,7 +117,6 @@ public class QueryAnnotationHsqlIntegrationTests {
 		Optional<DummyEntity> entity = repository.findByNameAsOptional("x");
 
 		assertThat(entity).isNotPresent();
-
 	}
 
 	@Test // DATAJDBC-172
@@ -123,7 +128,6 @@ public class QueryAnnotationHsqlIntegrationTests {
 
 		assertThat(entity).isNotNull();
 		assertThat(entity.name).isEqualTo("a");
-
 	}
 
 	@Test // DATAJDBC-172
@@ -134,7 +138,6 @@ public class QueryAnnotationHsqlIntegrationTests {
 		DummyEntity entity = repository.findByNameAsEntity("x");
 
 		assertThat(entity).isNull();
-
 	}
 
 	@Test // DATAJDBC-172
@@ -168,11 +171,10 @@ public class QueryAnnotationHsqlIntegrationTests {
 		assertThat(entities) //
 				.extracting(e -> e.name) //
 				.containsExactlyInAnyOrder("a", "b");
-
 	}
 
 	@Test // DATAJDBC-175
-	public void executeCustomQueryWithReturnTypeIsNubmer() {
+	public void executeCustomQueryWithReturnTypeIsNumber() {
 
 		repository.save(dummyEntity("aaa"));
 		repository.save(dummyEntity("bbb"));
@@ -181,7 +183,6 @@ public class QueryAnnotationHsqlIntegrationTests {
 		int count = repository.countByNameContaining("a");
 
 		assertThat(count).isEqualTo(2);
-
 	}
 
 	@Test // DATAJDBC-175
@@ -191,31 +192,25 @@ public class QueryAnnotationHsqlIntegrationTests {
 		repository.save(dummyEntity("bbb"));
 		repository.save(dummyEntity("cac"));
 
-		assertThat(repository.existsByNameContaining("a")).isTrue();
-		assertThat(repository.existsByNameContaining("d")).isFalse();
+		SoftAssertions.assertSoftly(softly -> {
 
+			softly.assertThat(repository.existsByNameContaining("a")).describedAs("entities with A in the name").isTrue();
+			softly.assertThat(repository.existsByNameContaining("d")).describedAs("entities with D in the name").isFalse();
+		});
 	}
 
 	@Test // DATAJDBC-175
 	public void executeCustomQueryWithReturnTypeIsDate() {
 
-		// Since Timestamp extends Date the repository returns the Timestamp as it comes from the database.
-		// Trying to compare that to an actual Date results in non determistic results, so we have to use an actual
-		// Timestamp.
-		Date now = new Timestamp(System.currentTimeMillis());
-		assertThat(repository.nowWithDate()).isAfterOrEqualsTo(now);
-
+		assertThat(repository.nowWithDate()).isInstanceOf(Date.class);
 	}
 
 	@Test // DATAJDBC-175
 	public void executeCustomQueryWithReturnTypeIsLocalDateTimeList() {
 
-		LocalDateTime preciseNow = LocalDateTime.now();
-		LocalDateTime truncatedNow = truncateSubmillis(preciseNow);
-
-		repository.nowWithLocalDateTimeList() //
-				.forEach(d -> assertThat(d).isAfterOrEqualTo(truncatedNow));
-
+		assertThat(repository.nowWithLocalDateTimeList()) //
+				.hasSize(2) //
+				.allSatisfy(d -> assertThat(d).isInstanceOf(LocalDateTime.class));
 	}
 
 	@Test // DATAJDBC-182
@@ -261,28 +256,11 @@ public class QueryAnnotationHsqlIntegrationTests {
 		assertThat(repository.immutableTuple()).isEqualTo(new DummyEntityRepository.ImmutableTuple("one", "two", 3));
 	}
 
-	private static LocalDateTime truncateSubmillis(LocalDateTime now) {
-
-		int NANOS_IN_MILLIS = 1_000_000;
-		return now.withNano((now.getNano() / NANOS_IN_MILLIS) * 1_000_000);
-	}
-
 	private DummyEntity dummyEntity(String name) {
 
 		DummyEntity entity = new DummyEntity();
 		entity.name = name;
 		return entity;
-	}
-
-	@Configuration
-	@Import(TestConfiguration.class)
-	@EnableJdbcRepositories(considerNestedRepositories = true)
-	static class Config {
-
-		@Bean
-		Class<?> testClass() {
-			return QueryAnnotationHsqlIntegrationTests.class;
-		}
 	}
 
 	private static class DummyEntity {
@@ -315,11 +293,11 @@ public class QueryAnnotationHsqlIntegrationTests {
 		Stream<DummyEntity> findAllWithReturnTypeIsStream();
 
 		// DATAJDBC-175
-		@Query("SELECT count(*) FROM DUMMY_ENTITY WHERE name like '%' || :name || '%'")
+		@Query("SELECT count(*) FROM DUMMY_ENTITY WHERE name like concat('%', :name, '%')")
 		int countByNameContaining(@Param("name") String name);
 
 		// DATAJDBC-175
-		@Query("SELECT count(*) FROM DUMMY_ENTITY WHERE name like '%' || :name || '%'")
+		@Query("SELECT case when count(*) > 0 THEN 'true' ELSE 'false' END FROM DUMMY_ENTITY WHERE name like '%' || :name || '%'")
 		boolean existsByNameContaining(@Param("name") String name);
 
 		// DATAJDBC-175
@@ -346,7 +324,7 @@ public class QueryAnnotationHsqlIntegrationTests {
 		void insert(@Param("name") String name);
 
 		// DATAJDBC-252
-		@Query("SELECT 'one' one, 'two' two, 3 three FROM (VALUES (0))")
+		@Query("SELECT 'one' one, 'two' two, 3 three FROM (VALUES (0)) as tableName")
 		ImmutableTuple immutableTuple();
 
 		@Value

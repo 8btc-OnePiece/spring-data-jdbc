@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 the original author or authors.
+ * Copyright 2019-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,9 +24,17 @@ package org.springframework.data.relational.core.sql;
 class AliasedExpression extends AbstractSegment implements Aliased, Expression {
 
 	private final Expression expression;
-	private final String alias;
+	private final SqlIdentifier alias;
 
 	public AliasedExpression(Expression expression, String alias) {
+
+		super(expression);
+
+		this.expression = expression;
+		this.alias = SqlIdentifier.unquoted(alias);
+	}
+
+	public AliasedExpression(Expression expression, SqlIdentifier alias) {
 
 		super(expression);
 
@@ -39,7 +47,7 @@ class AliasedExpression extends AbstractSegment implements Aliased, Expression {
 	 * @see org.springframework.data.relational.core.sql.Aliased#getAlias()
 	 */
 	@Override
-	public String getAlias() {
+	public SqlIdentifier getAlias() {
 		return alias;
 	}
 

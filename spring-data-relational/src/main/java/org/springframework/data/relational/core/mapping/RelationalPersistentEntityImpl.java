@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package org.springframework.data.relational.core.mapping;
 import java.util.Optional;
 
 import org.springframework.data.mapping.model.BasicPersistentEntity;
-import org.springframework.data.mapping.model.PersistentPropertyAccessorFactory;
+import org.springframework.data.relational.core.sql.SqlIdentifier;
 import org.springframework.data.util.Lazy;
 import org.springframework.data.util.TypeInformation;
 import org.springframework.util.StringUtils;
@@ -34,7 +34,8 @@ class RelationalPersistentEntityImpl<T> extends BasicPersistentEntity<T, Relatio
 		implements RelationalPersistentEntity<T> {
 
 	private final NamingStrategy namingStrategy;
-	private final Lazy<Optional<String>> tableName;
+	private final Lazy<Optional<SqlIdentifier>> tableName;
+	private boolean forceQuote = true;
 
 	/**
 	 * Creates a new {@link RelationalPersistentEntityImpl} for the given {@link TypeInformation}.
@@ -50,24 +51,48 @@ class RelationalPersistentEntityImpl<T> extends BasicPersistentEntity<T, Relatio
 				findAnnotation(Table.class)) //
 				.map(Table::value) //
 				.filter(StringUtils::hasText) //
+				.map(this::createSqlIdentifier) //
 		);
 	}
 
-	/* 
-	 * (non-Javadoc)
-	 * @see org.springframework.data.jdbc.mapping.model.JdbcPersistentEntity#getTableName()
-	 */
-	@Override
-	public String getTableName() {
-		return tableName.get().orElseGet(() -> namingStrategy.getQualifiedTableName(getType()));
+	private SqlIdentifier createSqlIdentifier(String name) {
+		return isForceQuote() ? SqlIdentifier.quoted(name) : SqlIdentifier.unquoted(name);
+	}
+
+	private SqlIdentifier createDerivedSqlIdentifier(String name) {
+		return new DerivedSqlIdentifier(name, isForceQuote());
+	}
+
+	public boolean isForceQuote() {
+		return forceQuote;
+	}
+
+	public void setForceQuote(boolean forceQuote) {
+		this.forceQuote = forceQuote;
 	}
 
 	/*
 	 * (non-Javadoc)
-	 * @see org.springframework.data.jdbc.core.mapping.model.JdbcPersistentEntity#getIdColumn()
+	 * @see org.springframework.data.relational.mapping.model.RelationalPersistentEntity#getTableName()
 	 */
 	@Override
-	public String getIdColumn() {
+	public SqlIdentifier getTableName() {
+		return tableName.get().orElseGet(() -> {
+
+			String schema = namingStrategy.getSchema();
+			SqlIdentifier tableName = createDerivedSqlIdentifier(namingStrategy.getTableName(getType()));
+
+			return StringUtils.hasText(schema) ? SqlIdentifier.from(createDerivedSqlIdentifier(schema), tableName)
+					: tableName;
+		});
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.relational.core.mapping.model.RelationalPersistentEntity#getIdColumn()
+	 */
+	@Override
+	public SqlIdentifier getIdColumn() {
 		return getRequiredIdProperty().getColumnName();
 	}
 
@@ -77,15 +102,6 @@ class RelationalPersistentEntityImpl<T> extends BasicPersistentEntity<T, Relatio
 	 */
 	@Override
 	public String toString() {
-		return String.format("JdbcPersistentEntityImpl<%s>", getType());
-	}
-
-	/* 
-	 * (non-Javadoc)
-	 * @see org.springframework.data.mapping.model.BasicPersistentEntity#setPersistentPropertyAccessorFactory(org.springframework.data.mapping.model.PersistentPropertyAccessorFactory)
-	 */
-	@Override
-	public void setPersistentPropertyAccessorFactory(PersistentPropertyAccessorFactory factory) {
-
+		return String.format("RelationalPersistentEntityImpl<%s>", getType());
 	}
 }

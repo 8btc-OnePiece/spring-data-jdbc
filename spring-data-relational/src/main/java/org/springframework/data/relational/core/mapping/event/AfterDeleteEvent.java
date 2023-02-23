@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 the original author or authors.
+ * Copyright 2017-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,28 +15,27 @@
  */
 package org.springframework.data.relational.core.mapping.event;
 
-import java.util.Optional;
-
 import org.springframework.data.relational.core.conversion.AggregateChange;
-import org.springframework.data.relational.core.mapping.event.Identifier.Specified;
+import org.springframework.lang.Nullable;
 
 /**
- * Gets published after deletion of an entity. It will have a {@link Specified} identifier. If the entity is empty or
- * not depends on the delete method used.
+ * Gets published after deletion of an entity. It will have a {@link Identifier} identifier. If the entity is
+ * {@literal null} or not depends on the delete method used.
  *
  * @author Jens Schauder
+ * @since 2.0
  */
-public class AfterDeleteEvent extends RelationalEventWithId {
+public class AfterDeleteEvent<E> extends RelationalDeleteEvent<E> {
 
-	private static final long serialVersionUID = 3594807189931141582L;
+	private static final long serialVersionUID = 2615043444207870206L;
 
 	/**
-	 * @param id of the entity.
-	 * @param instance the deleted entity if it is available.
+	 * @param id of the entity. Must not be {@literal null}.
+	 * @param instance the deleted entity if it is available. May be {@literal null}.
 	 * @param change the {@link AggregateChange} encoding the actions that were performed on the database as part of the
-	 *          delete operation.
+	 *          delete operation. Must not be {@literal null}.
 	 */
-	public AfterDeleteEvent(Specified id, Optional<?> instance, AggregateChange change) {
+	public AfterDeleteEvent(Identifier id, @Nullable E instance, AggregateChange<E> change) {
 		super(id, instance, change);
 	}
 }
