@@ -17,14 +17,17 @@ package org.springframework.data.jdbc.repository.query;
 
 import java.lang.reflect.Constructor;
 import java.sql.JDBCType;
+import java.util.Collection;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.BeanFactory;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jdbc.core.convert.JdbcColumnTypes;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.jdbc.core.convert.JdbcValue;
 import org.springframework.data.jdbc.support.JdbcUtil;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
+import org.springframework.data.relational.repository.query.RelationalParametersParameterAccessor;
 import org.springframework.data.repository.query.Parameter;
 import org.springframework.data.util.Lazy;
 import org.springframework.jdbc.core.ResultSetExtractor;
@@ -87,6 +90,9 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 
 		executor = Lazy.of(() -> {
 			RowMapper<Object> rowMapper = determineRowMapper(defaultRowMapper);
+			if (queryMethod.isPageQuery() || queryMethod.isSliceQuery()) {
+				return collectionQuery(rowMapper);
+			}
 			return getQueryExecution( //
 				queryMethod, //
 				determineResultSetExtractor(rowMapper), //
@@ -100,7 +106,30 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 	 */
 	@Override
 	public Object execute(Object[] objects) {
-		return executor.get().execute(determineQuery(), this.bindParameters(objects));
+		MapSqlParameterSource parameters = this.bindParameters(objects);
+		JdbcQueryExecution<?> execution = null;
+		if (queryMethod.isSliceQuery() || queryMethod.isPageQuery()) {
+			RelationalParametersParameterAccessor accessor = new RelationalParametersParameterAccessor(queryMethod, objects);
+			Pageable pageable = accessor.getPageable();
+			parameters.addValue("offset", pageable.getOffset());
+			if (queryMethod.isSliceQuery()) {
+				parameters.addValue("limit", pageable.getPageSize() + 1);
+				execution = new PartTreeJdbcQuery.SliceQueryExecution<>((JdbcQueryExecution<Collection<Object>>) this.executor.get(), pageable);
+			}else if (queryMethod.isPageQuery()) {
+				parameters.addValue("limit", pageable.getPageSize());
+				execution =  new PartTreeJdbcQuery.PageQueryExecution<>((JdbcQueryExecution<Collection<Object>>) this.executor.get(), pageable,
+						() -> {
+							String querySql = getQueryMethod().getDeclaredQuery();
+							String countQuerySql = querySql.replaceFirst("(?i)select .*? from", "select count(*) from")
+									.replaceFirst("(?i) order by .*", "");
+							Object count = singleObjectQuery((rs, i) -> rs.getLong(1)).execute(countQuerySql, parameters);
+							return converter.getConversionService().convert(count, Long.class);
+						});
+			}
+		}else {
+			execution = executor.get();
+		}
+		return execution.execute(determineQuery(), parameters);
 	}
 
 	/*
@@ -149,7 +178,16 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 			throw new IllegalStateException(String.format("No query specified on %s", queryMethod.getName()));
 		}
 
+		if (queryMethod.isPageQuery() || queryMethod.isSliceQuery()) {
+			return enhancePageQuery(query);
+		}
+
 		return query;
+	}
+
+	private String enhancePageQuery(String query) {
+		String original = query.trim().replace(";", "");
+		return String.format("%s limit :limit offset :offset", original);
 	}
 
 	@Nullable
