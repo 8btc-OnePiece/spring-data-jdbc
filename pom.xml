@@ -5,7 +5,7 @@
 
 	<groupId>org.springframework.data</groupId>
 	<artifactId>spring-data-relational-parent</artifactId>
-	<version>2.2.11.OnePiece.1.SNAPSHOT</version>
+	<version>2.2.11.OnePiece.1-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
 	<name>Spring Data Relational Parent</name>
@@ -292,13 +292,13 @@
 		<repository>
 			<id>nexus</id>
 			<name>nexus-releases</name>
-			<url>http://nexus-server:8081/repository/maven-releases/</url>
+			<url>https://nexus.8btc-ops.com/repository/maven-releases/</url>
 		</repository>
 
 		<snapshotRepository>
 			<id>nexus</id>
 			<name>nexus-snapshots</name>
-			<url>http://nexus-server:8081/repository/maven-snapshots/</url>
+			<url>https://nexus.8btc-ops.com/repository/maven-snapshots/</url>
 		</snapshotRepository>
 	</distributionManagement>
 </project>
