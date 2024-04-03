@@ -162,4 +162,17 @@
 		</pluginRepository>
 	</pluginRepositories>
 
+	<distributionManagement>
+		<repository>
+			<id>nexus</id>
+			<name>nexus-releases</name>
+			<url>https://nexus.8btc-ops.com/repository/maven-releases/</url>
+		</repository>
+
+		<snapshotRepository>
+			<id>nexus</id>
+			<name>nexus-snapshots</name>
+			<url>https://nexus.8btc-ops.com/repository/maven-snapshots/</url>
+		</snapshotRepository>
+	</distributionManagement>
 </project>
