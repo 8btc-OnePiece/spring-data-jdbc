@@ -26,6 +26,7 @@ import java.util.List;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jdbc.core.convert.JdbcColumnTypes;
 import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.jdbc.core.mapping.JdbcValue;
@@ -109,16 +110,6 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 		this.converter = converter;
 		this.rowMapperFactory = rowMapperFactory;
 		this.evaluationContextProvider = evaluationContextProvider;
-
-		if (queryMethod.isSliceQuery()) {
-			throw new UnsupportedOperationException(
-					"Slice queries are not supported using string-based queries; Offending method: " + queryMethod);
-		}
-
-		if (queryMethod.isPageQuery()) {
-			throw new UnsupportedOperationException(
-					"Page queries are not supported using string-based queries; Offending method: " + queryMethod);
-		}
 	}
 
 	@Override
@@ -132,10 +123,9 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 		RowMapper<Object> rowMapper = determineRowMapper(rowMapperFactory.create(resolveTypeToRead(processor)), converter,
 				accessor.findDynamicProjection() != null);
 
-		JdbcQueryExecution<?> queryExecution = getQueryExecution(//
-				queryMethod, //
-				determineResultSetExtractor(rowMapper), //
-				rowMapper);
+		JdbcQueryExecution<?> queryExecution = queryMethod.isPageQuery() || queryMethod.isSliceQuery()
+				? collectionQuery(rowMapper)
+				: getQueryExecution(queryMethod, determineResultSetExtractor(rowMapper), rowMapper);
 
 		MapSqlParameterSource parameterMap = this.bindParameters(accessor);
 
@@ -145,7 +135,31 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 			throw new IllegalStateException(String.format("No query specified on %s", queryMethod.getName()));
 		}
 
+		if (queryMethod.isSliceQuery() || queryMethod.isPageQuery()) {
+			queryExecution = wrapPageableQueryExecution(accessor, parameterMap, queryExecution);
+		}
+
 		return queryExecution.execute(processSpelExpressions(objects, parameterMap, query), parameterMap);
+	}
+
+	private JdbcQueryExecution<?> wrapPageableQueryExecution(RelationalParameterAccessor accessor, MapSqlParameterSource parameterMap, JdbcQueryExecution<?> queryExecution) {
+		Pageable pageable = accessor.getPageable();
+		parameterMap.addValue("offset", pageable.getOffset());
+		if (queryMethod.isSliceQuery()) {
+			parameterMap.addValue("limit", pageable.getPageSize() + 1);
+			queryExecution = new PartTreeJdbcQuery.SliceQueryExecution<>((JdbcQueryExecution<Collection<Object>>) queryExecution, pageable);
+		}else if (queryMethod.isPageQuery()) {
+			parameterMap.addValue("limit", pageable.getPageSize());
+			queryExecution =  new PartTreeJdbcQuery.PageQueryExecution<>((JdbcQueryExecution<Collection<Object>>) queryExecution, pageable,
+					() -> {
+						String querySql = getQueryMethod().getDeclaredQuery();
+						String countQuerySql = querySql.replaceFirst("(?i)select .*? from", "select count(*) from")
+								.replaceFirst("(?i) order by .*", "");
+						Object count = singleObjectQuery((rs, i) -> rs.getLong(1)).execute(countQuerySql, parameterMap);
+						return this.converter.getConversionService().convert(count, Long.class);
+					});
+		}
+		return queryExecution;
 	}
 
 	private String processSpelExpressions(Object[] objects, MapSqlParameterSource parameterMap, String query) {
@@ -225,8 +239,15 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 		if (ObjectUtils.isEmpty(query)) {
 			throw new IllegalStateException(String.format("No query specified on %s", queryMethod.getName()));
 		}
-
+		if (queryMethod.isPageQuery() || queryMethod.isSliceQuery()) {
+			return enhancePageQuery(query);
+		}
 		return query;
+	}
+
+	private String enhancePageQuery(String query) {
+		String original = query.trim().replace(";", "");
+		return String.format("%s limit :limit offset :offset", original);
 	}
 
 	@Nullable
